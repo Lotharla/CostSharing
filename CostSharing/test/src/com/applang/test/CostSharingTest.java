@@ -208,8 +208,12 @@ public class CostSharingTest extends ActivityTest
     }
     
     public void testSaveLoad() {
+    	for (String participant : participants)
+    		submissionTest(participant, 50, "stake");
+    	
     	int count = transactor.getCount(null);
     	double sum = transactor.getSum(null);
+		assertEquals(participants.length, count);
     	
     	saveTest("test");
     	
