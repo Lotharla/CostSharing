@@ -1,4 +1,4 @@
-package com.applang;
+package com.applang.shared;
 
 import java.io.File;
 import java.text.SimpleDateFormat;
@@ -26,6 +26,14 @@ public class Util
 			} catch (ClassCastException e) {}
 
 		return defaultParam;
+	}
+
+	public static int parseInt(int defaultValue, String string) {
+		try {
+			return Integer.parseInt(string);
+		} catch (NumberFormatException e) {
+			return defaultValue;
+		}
 	}
 
 	public static <T> boolean isAvailable(int i, T[] array) {
