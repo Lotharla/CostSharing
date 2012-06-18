@@ -404,6 +404,29 @@ public class Transactor extends DbAdapter implements java.io.Serializable
 			}, 0);
     }
     /**
+     * determines whether the table with the name exists in the database
+     * @param name	name of the table
+     * @return	the table does not exist if false
+     */
+    public Boolean tableExists(String name) {
+		return rawQuery("select name from sqlite_master where type = 'table'", null, 
+			new QueryEvaluator<Boolean>() {
+				public Boolean evaluate(Cursor cursor, Boolean defaultResult, Object... params) {
+			    	String name = (String)params[0];
+			    	Boolean result = defaultResult;
+			    	
+			    	do {
+		        		if (name.compareTo(cursor.getString(0)) == 0) {
+		        			result = true;
+		        			break;
+		        		}
+		    		} while (cursor.moveToNext());
+					
+			    	return result;
+				}
+			}, false, name);
+    }
+    /**
      * retrieves the names of tables that had been 'saved' in the past
      * @return	the <code>Set</code> of saved table names
      */
@@ -474,9 +497,9 @@ public class Transactor extends DbAdapter implements java.io.Serializable
      */
     @Override
     public void clear() {
-    	int count = getCount(null);
+    	int count = tableExists(table1) ? getCount(null) : 0;
     	super.clear();
-		Log.i(TAG, String.format("table cleared, %d records deleted", count));
+		Log.i(TAG, String.format("table '%s' cleared, %d records deleted", table1, count));
 		setSharingPolicy(null);
     }
     /**
