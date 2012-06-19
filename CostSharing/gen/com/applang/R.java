@@ -13,11 +13,19 @@ public final class R {
     public static final class drawable {
         public static final int ic_launcher=0x7f020000;
     }
+    public static final class id {
+        public static final int lower_bottoms=0x7f050001;
+        public static final int upper_bottoms=0x7f050000;
+    }
     public static final class layout {
         public static final int main=0x7f030000;
     }
     public static final class string {
-        public static final int app_name=0x7f040001;
-        public static final int hello=0x7f040000;
+        public static final int account=0x7f040002;
+        public static final int app_name=0x7f040000;
+        public static final int button_message_template=0x7f040005;
+        public static final int calender=0x7f040004;
+        public static final int group=0x7f040003;
+        public static final int payment=0x7f040001;
     }
 }
