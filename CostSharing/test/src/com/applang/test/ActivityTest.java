@@ -4,11 +4,12 @@ import java.io.File;
 
 import junit.framework.Test;
 
-import com.applang.*;
-
 import android.os.Environment;
 import android.test.*;
 import android.test.suitebuilder.TestSuiteBuilder;
+
+import com.applang.*;
+import com.applang.shared.*;
 
 public class ActivityTest extends ActivityInstrumentationTestCase2<CostSharingActivity> 
 {

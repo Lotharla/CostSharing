@@ -4,8 +4,8 @@ import java.util.*;
 
 import android.database.Cursor;
 
-import com.applang.*;
-import com.applang.Transactor.*;
+import com.applang.db.*;
+import com.applang.shared.*;
 
 public class CostSharingTest extends ActivityTest 
 {
@@ -59,7 +59,7 @@ public class CostSharingTest extends ActivityTest
     	assertTrue("invalid entry", entry > -1);
     	
     	transactor.fetchEntry(entry, 
-    		new QueryEvaluator<Void>() {
+    		new Transactor.QueryEvaluator<Void>() {
 				public Void evaluate(Cursor cursor, Void defaultResult, Object... params) {
 			    	assertNotNull(cursor);
 			    	assertEquals(expected, cursor.getCount());
@@ -73,7 +73,7 @@ public class CostSharingTest extends ActivityTest
     	assertEquals(transactor.getNewEntryId() - 1, entryId);
     	
     	transactor.fetchEntry(entryId, 
-    		new QueryEvaluator<Void>() {
+    		new Transactor.QueryEvaluator<Void>() {
 				public Void evaluate(Cursor cursor, Void defaultResult, Object... params) {
 			    	assertNotNull(cursor);
 					assertEquals("Bob", cursor.getString(1));
@@ -96,43 +96,76 @@ public class CostSharingTest extends ActivityTest
     
     public void testShareMap() {
     	ShareMap map = new ShareMap(participants, new Double[] {200.,null,300.});
-    	assertEquals(2, map.size());
-    	assertAmountEquals(200., map.get(participants[0]));
-    	assertAmountEquals(300., map.get(participants[2]));
+    	assertShareMap(map, 200., 300.);
     	
     	map = new ShareMap(participants, 600.);
-    	assertUniformShares(3, -200., map);
+    	assertShareMap(map, -200., -200., -200.);
     	
     	map = new ShareMap(participants, 600., null, 300.);
-    	assertEquals(3, map.size());
-    	assertAmountEquals(-100., map.get(participants[0]));
-    	assertAmountEquals(-300., map.get(participants[1]));
-    	assertAmountEquals(-200., map.get(participants[2]));
+    	assertShareMap(map, -300., -100., -200.);
+    	assertEquals("Bob", map.firstKey());
     	
     	assertAmountEquals(-600., map.sum());
     	assertAmountEquals(map.sum(), -map.negated().sum());
     	
     	map = new ShareMap(new String[] {participants[0], "", participants[2]}, 600.);
     	assertEquals("", map.firstKey());
+    	assertShareMap(map, -200., -200., -200.);
     	
-    	map = new ShareMap(participants, 120., new Integer[] {1,1,1});
-    	assertUniformShares(3, -40., map);
+    	map = new ShareMap(participants, 120., "1:1:1");
+    	assertShareMap(map, -40., -40., -40.);
     	
-    	map = new ShareMap(participants, 120., new Integer[] {0,1,2});
-    	assertEquals(3, map.size());
-    	assertAmountEquals(0., map.get(participants[0]));
-    	assertAmountEquals(-40., map.get(participants[1]));
-    	assertAmountEquals(-80., map.get(participants[2]));
+    	map = new ShareMap(participants, 120., "0:1:2");
+    	assertShareMap(map, -40., 0., -80.);
     	
-    	map = new ShareMap(participants, 150., new Integer[] {});
-    	assertUniformShares(3, -50., map);
+    	map = new ShareMap(participants, 150., "");
+    	assertShareMap(map, -50., -50., -50.);
+    	
+    	map = new ShareMap(null, 150., "1:2:3");
+    	assertShareMap(map, -25., -50., -75.);
+    	
+    	map = new ShareMap();
+    	map.reorganize(120., "");
+    	assertShareMap(map, map.placeholder(), -120.);
+    	map.reorganize(120., "3:1:2");
+    	assertShareMap(map, map.placeholder(1), -60., map.placeholder(2), -20., map.placeholder(3), -40.);
+    	map.reorganize(120., "1*3");
+    	assertShareMap(map, map.placeholder(1, 1), -40., map.placeholder(1, 2), -40., map.placeholder(1, 3), -40.);
+    	map.reorganize(120., "0:1*2:4");
+    	assertShareMap(map, map.placeholder(1), 0., map.placeholder(2, 1), -20., map.placeholder(2, 2), -20., map.placeholder(3), -80.);
+    	map.renameWith(participants);
+    	assertShareMap(map, "Bob", -20., "Sue", 0., "Tom", -20., map.placeholder(3), -80.);
     }
     
-    void assertUniformShares(int expectedMapSize, double expectedShareSize, Map<String, Double> actualMap) {
-    	assertEquals(expectedMapSize, actualMap.size());
-    	Iterator<Double> it = actualMap.values().iterator();
-    	for (int i = 0; i < expectedMapSize; i++) 
-    		assertAmountEquals(expectedShareSize, it.next());
+    void assertShareMap(ShareMap actual, Object... expected) {
+    	System.out.println(actual.toString()); 			/* ascending order of keys by default */
+    	
+    	int len = expected.length;
+    	boolean mapEntry = len > 1 && expected[0] instanceof String && expected[1] instanceof Double;
+    	assertEquals("unexpected map size.", len, (mapEntry ? 2 : 1) * actual.size());
+    	if (len < 1) 
+    		return;
+    	
+    	if (mapEntry) {
+	    	Iterator<Map.Entry<String, Double>> it = actual.entrySet().iterator();
+	    	for (int i = 0; i < len; i+=2) {
+	    		Map.Entry<String, Double> entry = it.next();
+	    		assertEquals(expected[i].toString(), entry.getKey());
+	    		assertEquals((Double)expected[i + 1], entry.getValue(), Transactor.minAmount);
+	    	}
+    	}
+    	else if (expected[0] instanceof Double) {
+	    	Iterator<Double> it = actual.values().iterator();
+	    	for (int i = 0; i < len; i++) 
+	    		assertEquals((Double)expected[i], it.next(), Transactor.minAmount);
+    	}
+    	else if (expected[0] instanceof String) {
+	    	Iterator<String> it = actual.keySet().iterator();
+	    	for (int i = 0; i < len; i++) 
+	    		assertEquals(expected[i].toString(), it.next());
+    	}
+    	else
+    		throw new IllegalArgumentException();
     }
     
     void zeroSumTest(int entry, String andCondition) {
@@ -159,7 +192,7 @@ public class CostSharingTest extends ActivityTest
 		assertNotNull("timestamp missing", transactor.fetchField(entryId, "timestamp"));
 		
 		transactor.fetchEntry(entryId, 
-    		new QueryEvaluator<Void>() {
+    		new Transactor.QueryEvaluator<Void>() {
 				public Void evaluate(Cursor cursor, Void defaultResult, Object... params) {
 			    	assertNotNull(cursor);
 			    	do {
@@ -202,7 +235,7 @@ public class CostSharingTest extends ActivityTest
     	
     	totalTest(99.);
     	
-    	id = transactor.performExpense(participants[2], "test2", new ShareMap(participants, 70., new Integer[] {3,0,4}));
+    	id = transactor.performExpense(participants[2], "test2", new ShareMap(participants, 70., "3:0:4"));
     	assertEntrySize(4, id);
     	zeroSumTest(id, " and expense > 0");
     }
@@ -281,7 +314,7 @@ public class CostSharingTest extends ActivityTest
     	assertTrue("Invalid entry.", entry > -1);
     	
     	transactor.fetchEntry(entry, 
-    		new QueryEvaluator<Void>() {
+    		new Transactor.QueryEvaluator<Void>() {
 				public Void evaluate(Cursor cursor, Void defaultResult, Object... params) {
 			    	assertNotNull(cursor);
 			    	if (shares == null) 
@@ -341,8 +374,8 @@ public class CostSharingTest extends ActivityTest
     	return entryTest(entry, 1, shares);
     }
     
-    int expenseTest(String submitter, double amount, String purpose, Integer[] proportions) {
-		ShareMap shares = new ShareMap(participants, amount, proportions);
+    int expenseTest(String submitter, double amount, String purpose, String policy) {
+		ShareMap shares = new ShareMap(participants, amount, policy);
     	int entryId = transactor.performExpense(submitter, purpose, shares);
     	return entryTest(entryId, 1, shares);
     }
@@ -354,31 +387,22 @@ public class CostSharingTest extends ActivityTest
     	return entryTest(entry, deals.size() + (deals.containsKey("") ? 1 : 0), shares);
     }
     
-    void sharingTest(double expectedExpenses, Integer... proportions) {
+    void sharingTest(double expectedExpenses, String policy) {
     	double costs = transactor.expenses();
 		assertEquals("costs are wrong.", expectedExpenses, costs, Transactor.minAmount);
-		ShareMap shares = new ShareMap(participants, costs, proportions);
+		ShareMap shares = new ShareMap(participants, costs, policy);
 		assertAmountEquals("Sharing sucks.", costs, shares.negated().sum());
     }
     
-    int compensationTest(Integer[] sharingPolicy, Double... expectedValues) {
+    int compensationTest(String sharingPolicy, Object... expectedValues) {
 		transactor.setSharingPolicy(sharingPolicy);
     	ShareMap compensations = transactor.compensations();
-    	assertMapValuesEqual(compensations, expectedValues);
+    	assertShareMap(compensations, expectedValues);
     	
-    	int entry = transactor.performMultiple(compensations, transactor.sharingPolicyString() + " sharing compensation");
+    	int entry = transactor.performMultiple(compensations, transactor.getSharingPolicy() + " sharing compensation");
     	entryTest(entry, 0, compensations);
     	totalTest();
     	return entry;
-    }
-    
-    void assertMapValuesEqual(Map<String, Double> map, Double... expectedValues) {
-    	int i = 0;
-    	for (Map.Entry<String, Double> ey : map.entrySet()) {
-    		if (Util.isAvailable(i, expectedValues))
-    			assertEquals(ey.getKey() + "'s balance wrong.", expectedValues[i], ey.getValue(), Transactor.minAmount);
-    		i++;
-    	}
     }
     
     void totalTest(double... expected) {
@@ -398,9 +422,9 @@ public class CostSharingTest extends ActivityTest
     	//	Kassensturz !
     	totalTest(50);
 		//	total of expenses
-		sharingTest(170);
+		sharingTest(170, "");
 		
-		assertMapValuesEqual(transactor.balances(), 43.33, 13.33, -6.67);
+		assertShareMap(transactor.balances(), 43.33, 13.33, -6.67);
     	//	Tom transfers some money to Sue to improve his balance
     	transferTest("Tom", 10, "better balance", "Sue");
    	
@@ -419,7 +443,7 @@ public class CostSharingTest extends ActivityTest
     	//	Kassensturz !
     	totalTest(10);
 		//	total of expenses
-		sharingTest(170);
+		sharingTest(170, "");
    	
     	compensationTest(null, 6.67, -13.33, -3.33);
     	
@@ -429,11 +453,11 @@ public class CostSharingTest extends ActivityTest
     public void test_Scenario3() {
     	//	non-uniform expenses
     	submissionTest(participants[2], 50, "stake");
-    	expenseTest(participants[0], 70, "groceries", new Integer[] {3,0,4});
-    	expenseTest(participants[0], 100, "gas", new Integer[] {3,7,0});
+    	expenseTest(participants[0], 70, "groceries", "3:0:4");
+    	expenseTest(participants[0], 100, "gas", "3:7:0");
     	
     	totalTest(50);
-		sharingTest(170);
+		sharingTest(170, "");
    	
     	compensationTest(null, 70., -110., -10.);
     	
@@ -447,13 +471,13 @@ public class CostSharingTest extends ActivityTest
     	simpleExpenseTest("Sue", 70, "groceries");
     	
     	totalTest(50);
-		sharingTest(170);
+		sharingTest(170, "");
     	transferTest("Tom", 10, "better balance", "Sue");
    	
-    	int entry = compensationTest(new Integer[] {1,2,2}, -66., 8., 8.);
+    	int entry = compensationTest("1:2:2", -66., 8., 8.);
     	transactor.performDiscard(entry);
     	
-    	entry = compensationTest(new Integer[] {1,0,1});
+    	entry = compensationTest("1:0:1", -15., -60., 25.);
     	
     	saveTest("Scenario4");
  	}

@@ -1,4 +1,4 @@
-package com.applang;
+package com.applang.db;
 
 import java.io.File;
 import java.util.*;
@@ -11,6 +11,8 @@ import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteException;
 import android.database.sqlite.SQLiteOpenHelper;
 import android.util.Log;
+
+import com.applang.shared.*;
 
 /**
  *	facilitates database access for a cost sharing system

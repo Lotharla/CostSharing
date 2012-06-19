@@ -1,4 +1,4 @@
-package com.applang;
+package com.applang.db;
 
 import java.util.*;
 
@@ -7,6 +7,8 @@ import android.content.ContentValues;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteException;
 import android.util.Log;
+
+import com.applang.shared.*;
 
 /**
  *	A class containing transactions and evaluation tools for a cost sharing system
@@ -225,7 +227,7 @@ public class Transactor extends DbAdapter implements java.io.Serializable
 		return affected;
     }
     /**
-     * calculates the cash flows caused by the participants
+     * summarizes the cash flows caused by the participants
 	 * @return	a sorted map containing the names as key and the cash flow of that participant as value
      */
     public ShareMap cashFlow() {
@@ -279,24 +281,15 @@ public class Transactor extends DbAdapter implements java.io.Serializable
     	return getSum("expense > 0 and timestamp not null");
     }
 
-	private Integer[] sharingPolicy = null;    //	uniform sharing among all participants
+	private String sharingPolicy = "";    //	uniform sharing among all participants
 	/**
 	 * A sharing policy depicts the way the volume of all the cash flows is to be shared among the participants 
-	 * when it comes to calculating compensations. The given integers are proportional weights for those participants 
-	 * who are involved in the compensation procedure. They are read according to the sorted list of names.
+	 * when it comes to calculating compensations (x:y:z ...). The given integers are proportional weights for those participants 
+	 * who are involved in the compensation procedure. They are assigned according to the sorted list of names.
 	 * @return	an array containing integer values or empty meaning the default sharing policy (uniform sharing among all participants)
 	 */
-	public Integer[] getSharingPolicy() {
+	public String getSharingPolicy() {
 		return sharingPolicy;
-	}
-	/**
-	 * @return	a <code>String</code> describing the current sharing policy in the format 'x:y:z ...'
-	 */
-	public String sharingPolicyString() {
-		if (sharingPolicy == null)
-			return "";
-		else
-			return Util.join(":", sharingPolicy);
 	}
 	/**
 	 * sets the sharing policy.
@@ -304,7 +297,7 @@ public class Transactor extends DbAdapter implements java.io.Serializable
 	 * resets the sharing policy to its default (uniform sharing among all participants).
 	 * @param sharingPolicy
 	 */
-	public void setSharingPolicy(Integer[] sharingPolicy) {
+	public void setSharingPolicy(String sharingPolicy) {
 		this.sharingPolicy = sharingPolicy;
 	}
 	/**

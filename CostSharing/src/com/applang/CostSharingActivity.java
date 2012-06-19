@@ -3,6 +3,8 @@ package com.applang;
 import android.app.Activity;
 import android.os.Bundle;
 
+import com.applang.db.*;
+
 public class CostSharingActivity extends Activity {
     private Transactor transactor;
 
