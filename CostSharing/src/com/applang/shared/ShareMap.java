@@ -9,6 +9,18 @@ import java.util.*;
 @SuppressWarnings("serial")
 public class ShareMap extends TreeMap<String, Double> 
 {
+	public static class ParseException extends Exception {
+		public int loc = -1;
+		public ParseException(int loc) {
+			super(INVALID);
+			this.loc = loc;
+		}
+		public ParseException(String message) {
+			super(message);
+		}
+		public static String INVALID = "invalid sharing policy";
+	}
+	
 	public ShareMap() {}
     /**
 	 * creates a sorted map of shares for a number of sharers according to a sharing policy.
@@ -18,8 +30,8 @@ public class ShareMap extends TreeMap<String, Double>
 	 * @param amount	the value of the amount to share
 	 * @param proportions	given proportions for the sharers according to the order of the names
      */
-    public ShareMap(String[] names, double amount, String policy) {
-		this(names, amount);
+    public ShareMap(String[] names, Double amount, String policy) {
+		this(names, amount == null ? 0. : amount.doubleValue());
 		
 		if (!Util.isNullOrEmpty(names) && (!Util.notNullOrEmpty(policy) || policy.trim().length() < 1)) {
 			String[] parts = new String[names.length];
@@ -28,64 +40,81 @@ public class ShareMap extends TreeMap<String, Double>
 			policy = Util.join(":", parts);
 		}
 
-		reorganize(amount, policy);
+		try {
+			reorganize(amount, policy);
+		} catch (ParseException e) {
+	    	this.clear();
+			return;
+		}
+		
 		renameWith(names);
     }
     
-    public void reorganize(double amount, String policy) {
+    public void reorganize(Double amount, String policy) throws ParseException {
     	this.clear();
     	
 		String[] parts = new String[0];
 		List<String> names = new ArrayList<String>();
-		int n = 0;
 		if (Util.notNullOrEmpty(policy.trim())) {
 			List<String> list = new ArrayList<String>();
-			list.addAll(Arrays.asList(policy.split(":")));
-			n = list.size();
-			for (int i = n - 1; i > -1; i--) {
+			list.addAll(Arrays.asList(policy.split(":|\\n", -1)));
+			for (int i = list.size() - 1; i > -1; i--) {
 				String part = list.get(i).trim();
-				if (part.length() < 1) {
-					list.remove(i);
-					continue;
-				}
-				else if (part.contains("*")) {
+				if (part.contains("*")) {
 					String[] facts = part.split("\\*");
-					int factor = Util.parseInt(1, facts[1]);
-					if (factor > 1) {
+					Integer factor = Util.parseInt(1, facts[1]);
+					if (factor == null || factor < 1) 
+						throw new ParseException(1);
+					else if (factor > 1) {
 						list.remove(i);
-						for (int j = 0; j < factor; j++) {
+						for (int j = factor; j > 0; j--) {
 							list.add(i, facts[0]);
-							names.add(0, placeholder(n, 1 + j));
+							names.add(0, placeholder(1 + i, j));
 						}
-						part = "";
 					}
 				}
-				if (part.length() > 0)
-					names.add(0, placeholder(n));
-				n--;
+				else
+					names.add(0, placeholder(1 + i));
 			}
 			parts = list.toArray(parts);
 		}
 		else {
 			parts = new String[] {"1"};
 			names.add(placeholder());
-			n = 1;
 		}
 
 		Integer[] proportions = new Integer[parts.length];
-		for (int i = 0; i < proportions.length; i++) {
-			proportions[i] = Util.parseInt(0, parts[i]);
+		
+		for (int i = 0; i < parts.length; i++) {
+			String part = parts[i];
+			String[] sides = part.split("=", 2);
+			boolean twoSides = sides.length > 1;
+			part = sides[twoSides ? 1 : 0];
+			if (twoSides)
+				names.set(i, sides[0].trim());
+			
+			proportions[i] = Util.parseInt(null, part);
+			if (proportions[i] == null) {
+				Double value = Util.parseDouble(null, part);
+				if (value == null) 
+					throw new ParseException(2);
+				else
+					put(names.get(i), value);
+			}
 		}
 		
-    	n = Util.isNullOrEmpty(proportions) ? 0 : proportions.length;
-    	if (n > 0) {
-    		Double[] normalized = normalize(proportions);
-			for (int i = 0; i < normalized.length; i++) 
-				put(names.get(i), -amount * normalized[i]);
-    	}
+		if (!Arrays.asList(proportions).contains(null)) {
+			Double[] normalized = normalize(proportions, amount == null ? 1. : -amount.doubleValue());
+			for (int i = 0; i < normalized.length; i++)
+				put(names.get(i), normalized[i]);
+		}
+		else
+			for (Integer integer : proportions) 
+				if (integer != null)
+					throw new ParseException(3);
     }
     
-    Double[] normalize(Integer[] proportions) {
+    Double[] normalize(Integer[] proportions, double amount) {
     	int n = proportions.length;
     	Double[] normalized = new Double[n];
     	
@@ -95,7 +124,7 @@ public class ShareMap extends TreeMap<String, Double>
 		
 		if (denominator > 0) {
 			for (int i = 0; i < n; i++) 
-				normalized[i] = Math.abs(proportions[i]) / denominator;
+				normalized[i] = amount * Math.abs(proportions[i]) / denominator;
 		}
 
 		return normalized;

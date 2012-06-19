@@ -25,9 +25,17 @@ public class Util
 		return defaultParam;
 	}
 
-	public static int parseInt(int defaultValue, String string) {
+	public static Integer parseInt(Integer defaultValue, String string) {
 		try {
-			return Integer.parseInt(string);
+			return Integer.parseInt(string.trim());
+		} catch (NumberFormatException e) {
+			return defaultValue;
+		}
+	}
+
+	public static Double parseDouble(Double defaultValue, String string) {
+		try {
+			return Double.valueOf(string);
 		} catch (NumberFormatException e) {
 			return defaultValue;
 		}

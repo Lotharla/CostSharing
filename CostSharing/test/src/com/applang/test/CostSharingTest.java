@@ -94,7 +94,7 @@ public class CostSharingTest extends ActivityTest
     
     String[] participants = new String[] {"Sue", "Bob", "Tom"};
     
-    public void testShareMap() {
+    public void testShareMap() throws ShareMap.ParseException {
     	ShareMap map = new ShareMap(participants, new Double[] {200.,null,300.});
     	assertShareMap(map, 200., 300.);
     	
@@ -105,12 +105,20 @@ public class CostSharingTest extends ActivityTest
     	assertShareMap(map, -300., -100., -200.);
     	assertEquals("Bob", map.firstKey());
     	
-    	assertAmountEquals(-600., map.sum());
-    	assertAmountEquals(map.sum(), -map.negated().sum());
-    	
     	map = new ShareMap(new String[] {participants[0], "", participants[2]}, 600.);
     	assertEquals("", map.firstKey());
     	assertShareMap(map, -200., -200., -200.);
+    	
+    	assertAmountEquals(-600., map.sum());
+    	assertAmountEquals(map.sum(), -map.negated().sum());
+    	
+    	assertEquals(789, Util.parseInt(null, "\t789 ").intValue());
+    	assertNull(Util.parseInt(null, "\t789. "));
+    	assertNull(Util.parseInt(null, "\t7 89 "));
+    	
+    	assertEquals(789., Util.parseDouble(null, "\t789 ").doubleValue());
+    	assertNotNull(Util.parseDouble(null, "\t789. "));
+    	assertNull(Util.parseDouble(null, "\t7 89 "));
     	
     	map = new ShareMap(participants, 120., "1:1:1");
     	assertShareMap(map, -40., -40., -40.);
@@ -120,6 +128,9 @@ public class CostSharingTest extends ActivityTest
     	
     	map = new ShareMap(participants, 150., "");
     	assertShareMap(map, -50., -50., -50.);
+    	
+    	map = new ShareMap(participants, null, "");
+    	assertShareMap(map, "Bob", .33, "Sue", .33, "Tom", .33);
     	
     	map = new ShareMap(null, 150., "1:2:3");
     	assertShareMap(map, -25., -50., -75.);
@@ -135,6 +146,33 @@ public class CostSharingTest extends ActivityTest
     	assertShareMap(map, map.placeholder(1), 0., map.placeholder(2, 1), -20., map.placeholder(2, 2), -20., map.placeholder(3), -80.);
     	map.renameWith(participants);
     	assertShareMap(map, "Bob", -20., "Sue", 0., "Tom", -20., map.placeholder(3), -80.);
+    	map.reorganize(120., "Tom=2\nSue=3\nBob=1");
+    	assertShareMap(map, "Bob", -20., "Sue", -60., "Tom", -40.);
+    	
+    	try {
+			map.reorganize(120., "3.:1:2");
+			fail(ShareMap.ParseException.INVALID);
+		} catch (ShareMap.ParseException e) {
+			assertEquals(3, e.loc);
+		}
+    	try {
+			map.reorganize(120., "3:1:");
+			fail(ShareMap.ParseException.INVALID);
+		} catch (ShareMap.ParseException e) {
+			assertEquals(2, e.loc);
+		}
+    	try {
+			map.reorganize(120., "3%:1:2");
+			fail(ShareMap.ParseException.INVALID);
+		} catch (ShareMap.ParseException e) {
+			assertEquals(2, e.loc);
+		}
+    	try {
+			map.reorganize(120., "0:1*0:4");
+			fail(ShareMap.ParseException.INVALID);
+		} catch (ShareMap.ParseException e) {
+			assertEquals(1, e.loc);
+		}
     }
     
     void assertShareMap(ShareMap actual, Object... expected) {
