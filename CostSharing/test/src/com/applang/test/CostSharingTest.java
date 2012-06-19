@@ -133,12 +133,12 @@ public class CostSharingTest extends ActivityTest
     	assertShareMap(map, map.placeholder(1, 1), -40., map.placeholder(1, 2), -40., map.placeholder(1, 3), -40.);
     	map.reorganize(120., "0:1*2:4");
     	assertShareMap(map, map.placeholder(1), 0., map.placeholder(2, 1), -20., map.placeholder(2, 2), -20., map.placeholder(3), -80.);
-    	map.rename(participants);
+    	map.renameWith(participants);
     	assertShareMap(map, "Bob", -20., "Sue", 0., "Tom", -20., map.placeholder(3), -80.);
     }
     
     void assertShareMap(ShareMap actual, Object... expected) {
-//    	System.out.println(actual.toString()); 			/* ascending order of keys by default */
+    	System.out.println(actual.toString()); 			/* ascending order of keys by default */
     	
     	int len = expected.length;
     	boolean mapEntry = len > 1 && expected[0] instanceof String && expected[1] instanceof Double;

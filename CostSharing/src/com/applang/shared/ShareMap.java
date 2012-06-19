@@ -29,16 +29,7 @@ public class ShareMap extends TreeMap<String, Double>
 		}
 
 		reorganize(amount, policy);
-		rename(names);
-    }
-    
-    public String placeholder(Integer... nums) {
-    	String name = "_Name";
-    	for (int i = 0; i < nums.length; i++) {
-    		name += "_%d";
-		}
-    	Object[] params = Arrays.asList(nums).toArray();
-		return String.format(name, params);
+		renameWith(names);
     }
     
     public void reorganize(double amount, String policy) {
@@ -110,7 +101,16 @@ public class ShareMap extends TreeMap<String, Double>
 		return normalized;
     }
     
-    public void rename(String... names) {
+    public String placeholder(Integer... nums) {
+    	String name = "_Name";
+    	for (int i = 0; i < nums.length; i++) {
+    		name += "_%d";
+		}
+    	Object[] params = Arrays.asList(nums).toArray();
+		return String.format(name, params);
+    }
+    
+    public void renameWith(String... names) {
     	if (Util.isNullOrEmpty(names))
     		return;
     	
