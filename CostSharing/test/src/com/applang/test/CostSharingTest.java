@@ -23,7 +23,7 @@ public class CostSharingTest extends ActivityTest
     protected void setUp() throws Exception {
         transactor = new Transactor(this.getActivity());
         
-        super.setUp();
+        super.setUp();	//	database file exists ?
     	
     	transactor.clear();
     }
