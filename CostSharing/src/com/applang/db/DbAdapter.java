@@ -25,10 +25,10 @@ public class DbAdapter
 
 	public static final int VERSION = 1;
 	
-	public DbAdapter(Context context) {
+	public DbAdapter(Context context, Object... params) {
 		if (context != null) {
 			SQLiteOpenHelper opener = new SQLiteOpenHelper(context,
-					Util.databaseName(), null, VERSION) {
+					Helper.databaseName(), null, VERSION) {
 				@Override
 				public void onCreate(SQLiteDatabase db) {
 					createTables(db);
@@ -48,12 +48,16 @@ public class DbAdapter
 			mDb = opener.getWritableDatabase();
 		}
 		else {
-			File dir = Util.databasesDir();
+			String dataDir = Util.param(null, 0, params);
+			if (dataDir != null)
+				Helper.setDataDirectory(dataDir);
+				
+			File dir = Helper.databasesDir();
 			if (!dir.isDirectory())
 				dir.mkdirs();
 			
 			mDb = SQLiteDatabase.openDatabase(
-				Util.databaseFile().getPath(), 
+					Helper.databaseFile().getPath(), 
            		null, 
            		SQLiteDatabase.CREATE_IF_NECESSARY);
 			

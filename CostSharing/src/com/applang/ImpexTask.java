@@ -11,7 +11,7 @@ import android.os.Environment;
 import android.util.Log;
 import android.widget.Toast;
 
-import com.applang.shared.*;
+import com.applang.db.*;
 
 public class ImpexTask extends AsyncTask<String, Void, Boolean> {
 	/**
@@ -41,8 +41,8 @@ public class ImpexTask extends AsyncTask<String, Void, Boolean> {
     	return Environment.getExternalStorageState().equals(Environment.MEDIA_MOUNTED);
     }
 	
-	String dbName = Util.databaseName();
-	String dbDir = Util.pathToDatabases();
+	String dbName = Helper.databaseName();
+	String dbDir = Helper.pathToDatabases();
 	
 	private final ProgressDialog dialog = new ProgressDialog(this.context);
 
