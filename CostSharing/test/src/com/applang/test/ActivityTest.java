@@ -9,7 +9,7 @@ import android.test.*;
 import android.test.suitebuilder.TestSuiteBuilder;
 
 import com.applang.*;
-import com.applang.shared.*;
+import com.applang.db.*;
 
 public class ActivityTest extends ActivityInstrumentationTestCase2<CostSharingActivity> 
 {
@@ -35,8 +35,8 @@ public class ActivityTest extends ActivityInstrumentationTestCase2<CostSharingAc
     protected void setUp() throws Exception {
         super.setUp();
     	
-    	File dbDir = new File(Environment.getDataDirectory(), Util.pathToDatabases());
-    	assertTrue(new File(dbDir, Util.databaseName()).exists());
+    	File dbDir = new File(Environment.getDataDirectory(), Helper.pathToDatabases());
+    	assertTrue(new File(dbDir, Helper.databaseName()).exists());
     }
 
     @Override

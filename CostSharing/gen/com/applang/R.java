@@ -13,11 +13,38 @@ public final class R {
     public static final class drawable {
         public static final int ic_launcher=0x7f020000;
     }
+    public static final class id {
+        public static final int amount=0x7f050002;
+        public static final int confirm=0x7f050009;
+        public static final int first_participant=0x7f050006;
+        public static final int first_share=0x7f050007;
+        public static final int lower_bottoms=0x7f050001;
+        public static final int plus=0x7f050008;
+        public static final int purpose=0x7f050004;
+        public static final int recip_table=0x7f050005;
+        public static final int submitter=0x7f050003;
+        public static final int upper_bottoms=0x7f050000;
+    }
     public static final class layout {
         public static final int main=0x7f030000;
+        public static final int payment_edit=0x7f030001;
     }
     public static final class string {
-        public static final int app_name=0x7f040001;
-        public static final int hello=0x7f040000;
+        public static final int account=0x7f040004;
+        public static final int amount=0x7f040008;
+        public static final int app_name=0x7f040000;
+        public static final int button_message_template=0x7f040007;
+        public static final int calender=0x7f040006;
+        public static final int confirm=0x7f04000e;
+        public static final int first_participant=0x7f04000b;
+        public static final int group=0x7f040005;
+        public static final int mainpage_name=0x7f040001;
+        public static final int next_participant=0x7f04000c;
+        public static final int payment=0x7f040003;
+        public static final int payment_message_template=0x7f04000f;
+        public static final int paypage_name=0x7f040002;
+        public static final int purpose=0x7f04000a;
+        public static final int share=0x7f04000d;
+        public static final int submitter=0x7f040009;
     }
 }

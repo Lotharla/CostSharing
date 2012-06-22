@@ -25,9 +25,17 @@ public class Util
 		return defaultParam;
 	}
 
-	public static int parseInt(int defaultValue, String string) {
+	public static Integer parseInt(Integer defaultValue, String string) {
 		try {
-			return Integer.parseInt(string);
+			return Integer.parseInt(string.trim());
+		} catch (NumberFormatException e) {
+			return defaultValue;
+		}
+	}
+
+	public static Double parseDouble(Double defaultValue, String string) {
+		try {
+			return Double.valueOf(string);
 		} catch (NumberFormatException e) {
 			return defaultValue;
 		}
@@ -69,50 +77,15 @@ public class Util
     }
 
 	public static double delta = 0.00001;
-
-	public static String formatAmount(double value) {
-		return String.format("%.2f", value);
-	}
-
-	public static SimpleDateFormat timestampFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
-
-	public static String timestamp(Date date) {
-		return timestampFormat.format(date);
-	}
+	
+	public static String placeholderIndicator = "_";
     
-    public static String timestampNow() {
-		return timestamp(new Date());
-	}
- 
-	public static String packageName() {
-		return "com.applang";
-	}
-
-	public static String pathToDatabases() {
-		return "data/" + packageName() + "/databases";
+    public static String placeholder(Integer... nums) {
+		return placeholderIndicator.concat(placeholderIndicator).concat(placeholderIndicator) + join(placeholderIndicator, nums);
+    }
+	
+	public static boolean isValidName(String name) {
+		return notNullOrEmpty(name) && !name.startsWith(placeholderIndicator) && !name.contains("=");
 	}
 
-	public static String databaseName() {
-		return "data";
-	}
-
-	public static File databasesDir() {
-		return new File(new File(getDataDirectory()), pathToDatabases());
-	}
-
-	public static File databaseFile() {
-		return new File(databasesDir(), databaseName());
-	}
-
-	public static String getDataDirectory() {
-		String dir = System.getProperty("data.dir");
-		if (notNullOrEmpty(dir))
-			return dir;
-		else
-			return System.getProperty("user.dir");
-	}
-
-	public static void setDataDirectory(String dir) {
-		System.setProperty("data.dir", dir);
-	}
 }

@@ -19,12 +19,12 @@ public class Transactor extends DbAdapter implements java.io.Serializable
 {
 	private static final long serialVersionUID = 1619400649251233944L;
 
-	public Transactor(Context context) {
-		super(context);
+	public Transactor(Context context, Object... params) {
+		super(context, params);
 	}
 
-	public Transactor() {
-		this(null);
+	public Transactor(Object... params) {
+		this(null, params);
 	}
     
 	private static final String TAG = Transactor.class.getSimpleName();
@@ -104,7 +104,7 @@ public class Transactor extends DbAdapter implements java.io.Serializable
 					entryId = performTransfer(name, -deal.getValue(), comment, name);
 				else {
 					long rowId = addRecord(entryId < 0 ? getNewEntryId() : entryId, 
-							name, deal.getValue(), currency, Util.timestampNow(), comment, true);
+							name, deal.getValue(), currency, Helper.timestampNow(), comment, true);
 					if (rowId < 0)
 			    		entryId = -1;
 				}
@@ -153,7 +153,7 @@ public class Transactor extends DbAdapter implements java.io.Serializable
 			return -1;
 		
 		boolean expense = sender.equals(recipient);
-		long rowId = addRecord(entryId, recipient, -amount, currency, Util.timestampNow(), comment, expense);
+		long rowId = addRecord(entryId, recipient, -amount, currency, Helper.timestampNow(), comment, expense);
 		if (rowId < 0){
     		removeEntry(entryId);
 			return -1;
@@ -205,7 +205,7 @@ public class Transactor extends DbAdapter implements java.io.Serializable
     	
 		if (entryId > -1) {
 			for (Map.Entry<String, Double> share : shares.entrySet())
-				if (addRecord(entryId, share.getKey(), share.getValue(), currency, Util.timestampNow(), comment, false) < 0) {
+				if (addRecord(entryId, share.getKey(), share.getValue(), currency, Helper.timestampNow(), comment, false) < 0) {
 		    		removeEntry(entryId);
 					return -1;
 				}
@@ -545,7 +545,7 @@ public class Transactor extends DbAdapter implements java.io.Serializable
     /** @hide */ public int addEntry(String name, double amount, String currency, String comment, boolean expense) {
     	int entryId = getNewEntryId();
         
-        long rowId = addRecord(entryId, name, amount, currency, Util.timestampNow(), comment, expense);
+        long rowId = addRecord(entryId, name, amount, currency, Helper.timestampNow(), comment, expense);
         if (rowId < 0) {
     		removeEntry(entryId);
     		entryId = -1;
