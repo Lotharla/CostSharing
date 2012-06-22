@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-
     <string name="app_name">CostSharing</string>
+    <string name="mainpage_name">CostSharing Startseite</string>
+    <string name="paypage_name">CostSharing Startseite</string>
     <string name="payment">Zahlung</string>
     <string name="account">Konto</string>
     <string name="group">Gruppe</string>
@@ -9,5 +10,15 @@
     <string name="button_message_template">
         Bald siehst du hier die \'%s\'-Ansicht!
         </string>
-
+	 <string name="amount">Wieviel?</string>
+	 <string name="submitter">Wer bezahlt?</string>
+	 <string name="purpose">Für was?</string>
+	 <string name="first_participant">Wer beteiligt sich?</string>
+	 <string name="next_participant">Wer noch?</string>
+	 <string name="share">Mit vieviel?</string>
+	 <string name="confirm">OK</string>
+	 <string formatted="false" name="payment_message_template">
+        %0s gibt %1s für %2s aus. Es beteiligen sich %3s 
+        mit jeweils %4s. 
+        </string>
 </resources>
