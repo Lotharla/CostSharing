@@ -13,12 +13,13 @@
 	 <string name="amount">Wieviel?</string>
 	 <string name="submitter">Wer bezahlt?</string>
 	 <string name="purpose">Für was?</string>
-	 <string name="first_participant">Wer beteiligt sich?</string>
+	 <string name="first_participant">Wer beteiligt sich?  </string>
 	 <string name="next_participant">Wer noch?</string>
 	 <string name="share">Mit vieviel?</string>
+	 <string name="plus">+</string>
 	 <string name="confirm">OK</string>
 	 <string formatted="false" name="payment_message_template">
-        %0s gibt %1s für %2s aus. Es beteiligen sich %3s 
-        mit jeweils %4s. 
+        \'%0s\' gibt \'%1s\' für \'%2s\' aus. Es beteiligen sich \'%3s\' 
+        mit jeweils \'%4s\'. 
         </string>
 </resources>

@@ -5,7 +5,7 @@ import java.util.ArrayList;
 import android.app.Activity;
 import android.os.Bundle;
 import android.view.View;
-import android.view.ViewGroup.LayoutParams;
+import android.widget.TableRow.LayoutParams;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.RadioButton;
@@ -29,6 +29,7 @@ public class PaymentEditView extends Activity {
 	        String firstShareString;
 	        String shareString;
 			String amountString;
+			String nameString;
 			String submitter;
 			String comment;
 			ArrayList<String> names;
@@ -42,8 +43,8 @@ public class PaymentEditView extends Activity {
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.payment_edit);
-        transactor = new Transactor(this);
         
+        transactor = new Transactor(this);
         mAmountText = (EditText) findViewById(R.id.amount);
         mSubmitterText = (EditText) findViewById(R.id.submitter);
         mPurposeText = (EditText) findViewById(R.id.purpose);
@@ -86,28 +87,20 @@ public class PaymentEditView extends Activity {
 		  
 	      participantNum = participantNum +1;
 	      
-		  TextView tvLeft = new TextView(this);
-		  tvLeft.setLayoutParams(lp);
-		  tvLeft.setText(R.string.next_participant);
 		  etLeft = new EditText(this);
 		  etLeft.setLayoutParams(lp);
-		  // etLeft.setId(R.id.participantNum);
-		 
-		  TextView tvRight = new TextView(this);
-		  tvRight.setLayoutParams(lp);
-		  tvRight.setText(R.string.next_participant);
+		  // etLeft.setId(R.id.participantNum);		 
 		  etRight = new EditText(this);
 		  etRight.setLayoutParams(lp);
-		  etRight.getInputType();
+		  //etRight.getInputType();
 		  etRight.setInputType(TYPE_NUMBER_FLAG_DECIMAL);
 		  //etRight.setId(shareNum);
 		  
-		  RadioButton rbRight = new RadioButton(this);
+		  Button rbRight = new Button(this);
 		  rbRight.setLayoutParams(lp);
+		  rbRight.setText(R.string.plus);
 
-		  tr.addView(tvLeft);
 		  tr.addView(etLeft);
-		  tr.addView(tvRight);
 		  tr.addView(etRight);
 		  tr.addView(rbRight);
 
@@ -123,34 +116,53 @@ public class PaymentEditView extends Activity {
 		}
 	
 	private void getEntryData() {
+		
+		try{
 		amountString = mAmountText.getText().toString();
 		amount = Double.parseDouble(amountString);
 	    submitter = mSubmitterText.getText().toString();
-	    comment = mPurposeText.getText().toString();	 
+	    comment = mPurposeText.getText().toString();	
+		}catch(Exception e ){
+			amount=0.0;
+			submitter = "niemand";
+			comment = "nix";
 		}
+	}
 
 
 	private void getEntryParticipants() {
-		shareString = etRight.getText().toString();
-		share = Double.parseDouble(shareString);
 		
-		if (participantNum < 2 && participantNum > 0) {
+		try{
+			nameString = etLeft.getText().toString();
+			shareString = etRight.getText().toString();
+			share= Double.parseDouble(shareString);
+			}catch(Exception e ){
+				share=0.0;
+				nameString = "name" + participantNum;
+			}
+
+		
+		if (participantNum < 3 && participantNum > 0) {
 			names = new ArrayList<String>();
+			shares = new ArrayList<Double>();
+			try{
 			firstShareString = mFirstShareText.getText().toString();
-			firstShare = Double.parseDouble(firstShareString);
-			
+			firstShare= Double.parseDouble(firstShareString);
+			}catch(Exception e ){
+				share=0.0;
+			}
 			names.add(mFirstParticipantText.getText().toString());
-			names.add(etLeft.getText().toString());
+			names.add(nameString);
 			shares.add(firstShare);
 			shares.add(share);
 			
 		} else if (participantNum > 2){
-			names.add(etLeft.getText().toString());
+			names.add(nameString);
 			shares.add(share);
-		}
+		} 
 		
 		
-		}
+	}
 	
 	private void showToast(String text) {
 		Toast.makeText(this, text, Toast.LENGTH_LONG).show();	 
