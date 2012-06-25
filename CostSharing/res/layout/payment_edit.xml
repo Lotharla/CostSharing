@@ -24,34 +24,41 @@
 		<EditText android:id="@+id/purpose" 
 			android:layout_width="fill_parent"
 			android:layout_height="wrap_content"/>
-	<TableLayout android:id="@+id/recip_table"
-		android:layout_width="fill_parent"
-		android:layout_height="wrap_content">		
-		<TableRow > 
-			<TextView android:layout_width="wrap_content"
-				android:layout_height="wrap_content" 
-				android:text="@string/first_participant"/>
-			<TextView android:layout_width="wrap_content"
-				android:layout_height="wrap_content" 
-				android:text="@string/share"/>
-		</TableRow>
-		<TableRow>
-		    <EditText android:id="@+id/first_participant" 
-				android:layout_width="fill_parent"
-				android:layout_height="wrap_content"/>
-			<EditText android:id="@+id/first_share" 
-				android:layout_width="fill_parent"
+	<ScrollView android:layout_width="fill_parent"
+		android:layout_height="wrap_content">
+		<LinearLayout android:layout_width="fill_parent"
 				android:layout_height="wrap_content"
-				android:numeric="decimal"/>	
-			<Button
-			    android:id="@+id/plus"
-			    android:text="@string/plus"
-			    android:layout_height="wrap_content"
-			    android:layout_width="wrap_content"/>				
-		</TableRow>
-	</TableLayout>	
-		<Button android:id="@+id/confirm" 
-	  		android:text="@string/confirm"
-			android:layout_width="wrap_content"
-			android:layout_height="wrap_content"/>
+				android:orientation="vertical">
+			<TableLayout android:id="@+id/recip_table"
+				android:layout_width="fill_parent"
+				android:layout_height="wrap_content">		
+				<TableRow > 
+					<TextView android:layout_width="wrap_content"
+						android:layout_height="wrap_content" 
+						android:text="@string/first_participant"/>
+					<TextView android:layout_width="wrap_content"
+						android:layout_height="wrap_content" 
+						android:text="@string/share"/>
+				</TableRow>
+				<TableRow>
+				    <EditText android:id="@+id/first_participant" 
+						android:layout_width="fill_parent"
+						android:layout_height="wrap_content"/>
+					<EditText android:id="@+id/first_share" 
+						android:layout_width="fill_parent"
+						android:layout_height="wrap_content"
+						android:numeric="decimal"/>	
+					<Button
+					    android:id="@+id/plus"
+					    android:text="@string/plus"
+					    android:layout_height="wrap_content"
+					    android:layout_width="wrap_content"/>				
+				</TableRow>
+			</TableLayout>
+			<Button android:id="@+id/confirm" 
+			  		android:text="@string/confirm"
+					android:layout_width="wrap_content"
+					android:layout_height="wrap_content"/>
+	 	</LinearLayout>
+	</ScrollView>	
 	</LinearLayout>

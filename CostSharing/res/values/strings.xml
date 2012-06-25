@@ -19,7 +19,6 @@
 	 <string name="plus">+</string>
 	 <string name="confirm">OK</string>
 	 <string formatted="false" name="payment_message_template">
-        \'%0s\' gibt \'%1s\' für \'%2s\' aus. Es beteiligen sich \'%3s\' 
-        mit jeweils \'%4s\'. 
+        Sub:\'%s\' Amo: \'%s\' Com:\'%s\' Part:\'%s\' Share:\'%s\' 
         </string>
 </resources>
