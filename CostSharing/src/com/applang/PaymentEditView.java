@@ -213,9 +213,9 @@ public class PaymentEditView extends Activity {
 				transactor.performSubmission(submitter, amount, comment);
 			}else {
 				if (amount != 0.0){
-					ShareMap sharemap = new ShareMap(names.toArray(), amount, shares.toArray());
+					sharemap = new ShareMap(names.toArray(new String[0]), amount, shares.toArray(new Double[0]));
 				} else {
-					ShareMap sharemap = new ShareMap(names.toArray(), shares.toArray());
+					sharemap = new ShareMap(names.toArray(new String[0]), shares.toArray(new Double[0]));
 				}
 				transactor.performExpense(submitter, comment, sharemap);
 			}
