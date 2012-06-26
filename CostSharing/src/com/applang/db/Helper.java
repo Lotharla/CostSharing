@@ -4,7 +4,7 @@ import java.io.File;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 
-import com.applang.shared.*;
+import com.applang.share.*;
 
 public class Helper
 {

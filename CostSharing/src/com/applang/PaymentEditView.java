@@ -13,7 +13,7 @@ import android.widget.TableRow;
 import android.widget.Toast;
 
 import com.applang.db.*;
-import com.applang.shared.ShareMap;
+import com.applang.share.ShareMap;
 
 public class PaymentEditView extends Activity {
 	private static final int TYPE_NUMBER_FLAG_DECIMAL = 0;

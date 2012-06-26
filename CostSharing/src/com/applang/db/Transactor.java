@@ -8,7 +8,7 @@ import android.database.Cursor;
 import android.database.sqlite.SQLiteException;
 import android.util.Log;
 
-import com.applang.shared.*;
+import com.applang.share.*;
 
 /**
  *	A class containing transactions and evaluation tools for a cost sharing system
@@ -21,6 +21,9 @@ public class Transactor extends DbAdapter implements java.io.Serializable
 
 	public Transactor(Context context, Object... params) {
 		super(context, params);
+		
+		if (!tableExists(table1))
+			super.createTables(getDb());
 	}
 
 	public Transactor(Object... params) {

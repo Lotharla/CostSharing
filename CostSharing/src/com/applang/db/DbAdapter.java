@@ -12,7 +12,7 @@ import android.database.sqlite.SQLiteException;
 import android.database.sqlite.SQLiteOpenHelper;
 import android.util.Log;
 
-import com.applang.shared.*;
+import com.applang.share.*;
 
 /**
  *	facilitates database access for a cost sharing system
@@ -78,7 +78,7 @@ public class DbAdapter
     List<String> tableList = new ArrayList<String>(tableDefs.keySet());
     public String table1 = "";
 
-	private void createTables(SQLiteDatabase db, Object... params) {
+    protected void createTables(SQLiteDatabase db, Object... params) {
 		for (int i = 0; i < tableList.size(); i++) {
 			String table = tableList.get(i);
 			String sql = String.format("create table %s %s (%s);", 
@@ -89,7 +89,7 @@ public class DbAdapter
 		}
 	}
     
-	private void recreateTables(SQLiteDatabase db) {
+    protected void recreateTables(SQLiteDatabase db) {
 		for (int i = tableList.size() - 1; i > -1; i--) 
 			db.execSQL("DROP TABLE IF EXISTS " + tableList.get(i));
 		

@@ -5,7 +5,7 @@ import java.util.*;
 import android.database.Cursor;
 
 import com.applang.db.*;
-import com.applang.shared.*;
+import com.applang.share.*;
 
 public class CostSharingTest extends ActivityTest 
 {
@@ -187,7 +187,7 @@ public class CostSharingTest extends ActivityTest
     }
     
     void assertShareMap(ShareMap actual, Object... expected) {
-    	System.out.println(actual.toString()); 			/* ascending order of keys by default */
+//    	System.out.println(actual.toString()); 			/* ascending order of keys by default */
     	
     	int len = expected.length;
     	boolean mapEntry = len > 1 && expected[0] instanceof String && expected[1] instanceof Double;

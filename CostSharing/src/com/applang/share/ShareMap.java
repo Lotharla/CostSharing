@@ -1,4 +1,4 @@
-package com.applang.shared;
+package com.applang.share;
 
 import java.util.*;
 

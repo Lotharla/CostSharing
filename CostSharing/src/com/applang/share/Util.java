@@ -1,4 +1,4 @@
-package com.applang.shared;
+package com.applang.share;
 
 import java.io.*;
 import java.text.SimpleDateFormat;
@@ -87,5 +87,10 @@ public class Util
 	public static boolean isValidName(String name) {
 		return notNullOrEmpty(name) && !name.startsWith(placeholderIndicator) && !name.contains("=");
 	}
+
+	public static native void alert(String msg)
+	/*-{
+		$wnd.alert(msg);
+	}-*/;
 
 }
