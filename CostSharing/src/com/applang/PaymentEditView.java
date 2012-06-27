@@ -4,6 +4,7 @@ import java.util.ArrayList;
 
 import android.app.Activity;
 import android.os.Bundle;
+import android.text.InputType;
 import android.view.View;
 import android.widget.TableRow.LayoutParams;
 import android.widget.Button;
@@ -67,8 +68,7 @@ public class PaymentEditView extends Activity {
         
         confirmButton.setOnClickListener(new View.OnClickListener() {
         	public void onClick(View view) {
-        		getEntryData();
-        		showToast();   
+        		getEntryData();	
         		saveData();
         	}
 
@@ -80,18 +80,19 @@ public class PaymentEditView extends Activity {
 		  TableLayout tl = (TableLayout) findViewById(R.id.recip_table);
 		  TableRow tr = new TableRow(this);
 		  LayoutParams lp = new LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT);
-		  //tr.setLayoutParams(lp);
+		  tr.setLayoutParams(new LayoutParams(LayoutParams.FILL_PARENT, LayoutParams.WRAP_CONTENT));
 		  
-	      participantNum = participantNum +1;
+	      participantNum++;
+//	      tr.setId(participantNum);
 	      
 		  etLeft = new EditText(this);
 		  etLeft.setLayoutParams(lp);
-		  // etLeft.setId(R.id.participantNum);		 
+		  etLeft.setId(100 + participantNum);	
+		  
 		  etRight = new EditText(this);
 		  etRight.setLayoutParams(lp);
-		  //etRight.getInputType();
-		  etRight.setInputType(TYPE_NUMBER_FLAG_DECIMAL);
-		  //etRight.setId(shareNum);
+		  etRight.setInputType(InputType.TYPE_CLASS_NUMBER);
+		  etRight.setId(200 + participantNum);
 		  
 		  Button rbRight = new Button(this);
 		  rbRight.setLayoutParams(lp);
@@ -105,7 +106,6 @@ public class PaymentEditView extends Activity {
 		  
 		  rbRight.setOnClickListener(new View.OnClickListener() {
 	        	public void onClick(View view) {
-	        		getEntryParticipants();
 	        		createTableRow(view);  	
 	        	}
 
@@ -124,9 +124,7 @@ public class PaymentEditView extends Activity {
 			submitter = "niemand";
 			comment = "nix";
 		}
-//		if (participantNum < 4){
 	    	getEntryParticipants();		
-//	    }
 	}
 
 
@@ -144,11 +142,10 @@ public class PaymentEditView extends Activity {
 			}catch(Exception e ){
 				firstShare=0.0;
 			}
-			
 			names.add(firstParticipantString);
 			shares.add(firstShare);
 			
-		}else if (participantNum < 3) {
+		}else if (participantNum > 1) {
 			names = new ArrayList<String>();
 			shares = new ArrayList<Double>();
 			
@@ -163,50 +160,32 @@ public class PaymentEditView extends Activity {
 			}catch(Exception e ){
 				firstShare=0.0;
 			}
-			if(etLeft.length() > 0){
-				nameString = etLeft.getText().toString();
-			}else{
-				nameString = "Noname" + participantNum;
-			}
-			try{
-				shareString = etRight.getText().toString();
-				share= Double.parseDouble(shareString);
-			}catch(Exception e ){
-				share=0.0;
-			}
 			names.add(firstParticipantString);
-			names.add(nameString);
 			shares.add(firstShare);
-			shares.add(share);
 			
-		} else if (participantNum > 2){
-			if(etLeft.length() > 0){
-				nameString = etLeft.getText().toString();
-			}else{
-				nameString = "Noname" + participantNum;
-			}
-			try{
-				shareString = etRight.getText().toString();
-				share= Double.parseDouble(shareString);
-			}catch(Exception e ){
-				share=0.0;
-			}
-			names.add(nameString);
-			shares.add(share);
-		} 
-		
-		
+			for (int i = 2; i < participantNum +1; i++){
+				
+				EditText etLeft = (EditText) findViewById(100 + i);
+				EditText etRight = (EditText) findViewById(200 + i);
+			
+				if(etLeft.length() > 0){
+					nameString = etLeft.getText().toString();
+				}else{
+					nameString = "Noname" + i;
+				}
+				try{
+					shareString = etRight.getText().toString();
+					share= Double.parseDouble(shareString);
+				}catch(Exception e ){
+					share=0.0;
+				}
+				names.add(nameString);
+				shares.add(share);
+				
+			}					
+		} 	
 	}
-	
-	private void showToast() {
-		String mPaymentMessageTemplate =
-	        	getString(R.string.payment_message_template);
-		String message = 
-				String.format(mPaymentMessageTemplate,submitter, amount.toString(), comment, names.toString(), shares.toString());
 		
-		Toast.makeText(this, message, Toast.LENGTH_LONG).show();	 
-		}
-	
 	private void saveData() {
 		
 			if(participantNum < 2 && firstParticipantString.length() < 1){
@@ -219,7 +198,18 @@ public class PaymentEditView extends Activity {
 				}
 				transactor.performExpense(submitter, comment, sharemap);
 			}
+		
+			showToast();   	
+			
 		}
 			 
+	private void showToast() {
+		String mPaymentMessageTemplate =
+	        	getString(R.string.payment_message_template);
+		String message = 
+				String.format(mPaymentMessageTemplate,submitter, amount.toString(), comment, names.toString(), shares.toString());
+		
+		Toast.makeText(this, message, Toast.LENGTH_LONG).show();	 
+		}
 	
 }

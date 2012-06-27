@@ -35,6 +35,10 @@ public class FrontendTest extends ActivityTest
         super.tearDown();
 	}
     
+    public void testClear (){
+    	transactor.clear();
+	}
+    
     public void testPaymentEditView (){
     	ShareMap sm = transactor.rawQuery("select name, amount from " + transactor.table1, null, 
 			new QueryEvaluator<ShareMap>() {
@@ -43,7 +47,10 @@ public class FrontendTest extends ActivityTest
 					
 					if (cursor.moveToFirst()) 
 		    			do {
-		    				map.put(cursor.getString(0), cursor.getDouble(1));
+		    				String name = cursor.getString(0);
+		    				if (map.containsKey(name))
+		    					name=name+"_";
+		    				map.put(name, cursor.getDouble(1));
 		    			} while (cursor.moveToNext());
 		    		
 					return map;
