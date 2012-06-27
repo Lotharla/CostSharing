@@ -240,7 +240,7 @@ public class Transactor extends DbAdapter implements java.io.Serializable
 				public ShareMap evaluate(Cursor cursor, ShareMap defaultResult, Object... params) {
 					ShareMap map = new ShareMap();
 					
-		    		do {
+		    		if (cursor.moveToFirst()) do {
 		    			map.put(cursor.getString(0), cursor.getDouble(1));
 		    		} while (cursor.moveToNext());
 		    		
@@ -260,7 +260,7 @@ public class Transactor extends DbAdapter implements java.io.Serializable
 				public ShareMap evaluate(Cursor cursor, ShareMap defaultResult, Object... params) {
 					ShareMap map = new ShareMap();
 					
-		    		do {
+					if (cursor.moveToFirst()) do {
 		    			map.put(cursor.getString(0), cursor.getDouble(1));
 		    		} while (cursor.moveToNext());
 		    		
@@ -332,7 +332,7 @@ public class Transactor extends DbAdapter implements java.io.Serializable
 			new QueryEvaluator<String[]>() {
 				public String[] evaluate(Cursor cursor, String[] defaultResult, Object... params) {
 			    	TreeSet<String> names = new TreeSet<String>();
-		    		do {
+			    	if (cursor.moveToFirst()) do {
 		    			names.add(cursor.getString(0));
 		    		} while (cursor.moveToNext());
 					return names.toArray(defaultResult);
@@ -349,7 +349,7 @@ public class Transactor extends DbAdapter implements java.io.Serializable
 			new QueryEvaluator<Integer[]>() {
 				public Integer[] evaluate(Cursor cursor, Integer[] defaultResult, Object... params) {
 			    	TreeSet<Integer> ids = new TreeSet<Integer>();
-		    		do {
+			    	if (cursor.moveToFirst()) do {
 		       			ids.add(cursor.getInt(0));
 		       		} while (cursor.moveToNext());
 					return ids.toArray(defaultResult);
@@ -366,7 +366,7 @@ public class Transactor extends DbAdapter implements java.io.Serializable
 			new QueryEvaluator<Long[]>() {
 				public Long[] evaluate(Cursor cursor, Long[] defaultResult, Object... params) {
 			    	TreeSet<Long> ids = new TreeSet<Long>();
-		    		do {
+			    	if (cursor.moveToFirst()) do {
 		       			ids.add(cursor.getLong(0));
 		       		} while (cursor.moveToNext());
 					return ids.toArray(defaultResult);
@@ -382,7 +382,10 @@ public class Transactor extends DbAdapter implements java.io.Serializable
 				(Util.notNullOrEmpty(clause) ? " where " + clause : ""), null, 
 			new QueryEvaluator<Double>() {
 				public Double evaluate(Cursor cursor, Double defaultResult, Object... params) {
-					return cursor.getDouble(0);
+					if (cursor.moveToFirst()) 
+						return cursor.getDouble(0);
+					else
+						return defaultResult;
 				}
 			}, 0.);
 	}
@@ -395,7 +398,10 @@ public class Transactor extends DbAdapter implements java.io.Serializable
 				(Util.notNullOrEmpty(clause) ? " where " + clause : ""), null, 
 			new QueryEvaluator<Integer>() {
 				public Integer evaluate(Cursor cursor, Integer defaultResult, Object... params) {
-					return cursor.getInt(0);
+					if (cursor.moveToFirst()) 
+						return cursor.getInt(0);
+					else
+						return defaultResult;
 				}
 			}, 0);
     }
@@ -411,7 +417,7 @@ public class Transactor extends DbAdapter implements java.io.Serializable
 			    	String name = (String)params[0];
 			    	Boolean result = defaultResult;
 			    	
-			    	do {
+			    	if (cursor.moveToFirst()) do {
 		        		if (name.compareTo(cursor.getString(0)) == 0) {
 		        			result = true;
 		        			break;
@@ -432,7 +438,7 @@ public class Transactor extends DbAdapter implements java.io.Serializable
 				public Set<String> evaluate(Cursor cursor, Set<String> defaultResult, Object... params) {
 			    	TreeSet<String> names = new TreeSet<String>();
 		    		
-			    	do {
+			    	if (cursor.moveToFirst()) do {
 		        		String name = cursor.getString(0);
 		        		if (name.startsWith(table1 + "_"))
 		        			names.add(name);
@@ -528,7 +534,7 @@ public class Transactor extends DbAdapter implements java.io.Serializable
 		return rawQuery("select expense from " + table1 + " where ROWID=" + rowId, null, 
 			new QueryEvaluator<Boolean>() {
 				public Boolean evaluate(Cursor cursor, Boolean defaultResult, Object... params) {
-					return cursor.getCount() > 0 && cursor.getInt(0) > 0;
+					return cursor.moveToFirst() && cursor.getInt(0) > 0;
 				}
 			}, false);
 	}
@@ -537,7 +543,7 @@ public class Transactor extends DbAdapter implements java.io.Serializable
 		return 1 + rawQuery("select max(entry) from " + table1, null, 
 			new QueryEvaluator<Integer>() {
 				public Integer evaluate(Cursor cursor, Integer defaultResult, Object... params) {
-					if (cursor.getCount() > 0)
+					if (cursor.moveToFirst()) 
 						return cursor.getInt(0);
 					else
 						return defaultResult;
@@ -562,7 +568,7 @@ public class Transactor extends DbAdapter implements java.io.Serializable
 			new QueryEvaluator<String>() {
 				public String evaluate(Cursor cursor, String defaultResult, Object... params) {
 					int timestampIndex = columnIndex("timestamp");
-					do {
+					if (cursor.moveToFirst()) do {
 						if (cursor.getString(timestampIndex) != null)
 							return cursor.getString(columnIndex(name));
 					} while (cursor.moveToNext());
@@ -592,12 +598,8 @@ public class Transactor extends DbAdapter implements java.io.Serializable
         
 		try {
 			cursor = rawQuery(sql, selectionArgs);
-	        if (cursor != null) {
-	        	if (cursor.getCount() > 0)
-	        		cursor.moveToFirst();
-	        	
+	        if (cursor != null) 
 	        	return qe.evaluate(cursor, defaultResult, params);
-	        }
 		} 
 		catch (SQLiteException ex) {
 		}
@@ -614,13 +616,8 @@ public class Transactor extends DbAdapter implements java.io.Serializable
         
 		try {
 	        cursor = query(getFieldNames(), "entry=" + entryId);
-	        
-	        if (cursor != null) {
-	        	if (cursor.getCount() > 0)
-	        		cursor.moveToFirst();
-	        }
-	        	
-        	return qe.evaluate(cursor, defaultResult, params);
+	        if (cursor != null) 
+	        	return qe.evaluate(cursor, defaultResult, params);
 		} 
 		catch (SQLiteException ex) {
 		}

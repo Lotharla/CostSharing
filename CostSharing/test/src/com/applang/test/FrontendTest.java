@@ -41,7 +41,7 @@ public class FrontendTest extends ActivityTest
 				public ShareMap evaluate(Cursor cursor, ShareMap defaultResult, Object... params) {
 					ShareMap map = new ShareMap();
 					
-		    		if (cursor.getCount() > 0)
+					if (cursor.moveToFirst()) 
 		    			do {
 		    				map.put(cursor.getString(0), cursor.getDouble(1));
 		    			} while (cursor.moveToNext());

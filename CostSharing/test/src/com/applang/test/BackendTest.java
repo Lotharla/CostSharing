@@ -7,13 +7,13 @@ import android.database.Cursor;
 import com.applang.db.*;
 import com.applang.share.*;
 
-public class CostSharingTest extends ActivityTest 
+public class BackendTest extends ActivityTest 
 {
-	public CostSharingTest() {
+	public BackendTest() {
 		super();
 	}
 
-	public CostSharingTest(String method) {
+	public BackendTest(String method) {
 		super(method);
 	}
 
@@ -76,6 +76,7 @@ public class CostSharingTest extends ActivityTest
     		new Transactor.QueryEvaluator<Void>() {
 				public Void evaluate(Cursor cursor, Void defaultResult, Object... params) {
 			    	assertNotNull(cursor);
+			    	assertTrue(cursor.moveToFirst());
 					assertEquals("Bob", cursor.getString(1));
 					assertEquals(100.5, cursor.getDouble(2));
 					assertEquals(null, cursor.getString(3));
@@ -244,7 +245,7 @@ public class CostSharingTest extends ActivityTest
     		new Transactor.QueryEvaluator<Void>() {
 				public Void evaluate(Cursor cursor, Void defaultResult, Object... params) {
 			    	assertNotNull(cursor);
-			    	do {
+			    	if (cursor.moveToFirst()) do {
 			        	assertEquals(expense, transactor.isExpense(cursor.getLong(transactor.columnIndex("ROWID"))));
 			        	double amount = cursor.getDouble(transactor.columnIndex("amount"));
 			        	if (cursor.getString(transactor.columnIndex("timestamp")) != null)
@@ -373,7 +374,7 @@ public class CostSharingTest extends ActivityTest
 						for (String name : shares.keySet()) {
 							double share = shares.get(name);
 
-							do {
+							if (cursor.moveToFirst()) do {
 								if (cursor.getString(transactor.columnIndex("timestamp")) == null
 										&& name.equals(cursor.getString(transactor.columnIndex("name")))) {
 									double amount = cursor.getDouble(transactor.columnIndex("amount"));

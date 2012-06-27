@@ -19,8 +19,8 @@ public class ActivityTest extends ActivityInstrumentationTestCase2<CostSharingAc
 	}
 	
 	public static Test suite() {
-	    return new TestSuiteBuilder(CostSharingTest.class).
-	    		includePackages("com.applang.test.CostSharingTest").build();
+	    return new TestSuiteBuilder(BackendTest.class).
+	    		includePackages("com.applang.test.BackendTest").build();
 	}
 
 	public ActivityTest() {
