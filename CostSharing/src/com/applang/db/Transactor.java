@@ -23,7 +23,7 @@ public class Transactor extends DbAdapter implements java.io.Serializable
 		super(context, params);
 		
 		if (!tableExists(table1))
-			super.createTables(getDb());
+			super.recreateTables(getDb());
 	}
 
 	public Transactor(Object... params) {
