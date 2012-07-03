@@ -17,7 +17,7 @@ public class BackendTest extends ActivityTest
 		super(method);
 	}
 
-    private Transactor transactor;
+	public Transactor transactor;
 
     @Override
     protected void setUp() throws Exception {
@@ -27,12 +27,17 @@ public class BackendTest extends ActivityTest
     	
     	transactor.clear();
     }
+    
+    protected String suffix = "";
 
 	@Override
     protected void tearDown() throws Exception {
+		saveTest(suffix);
 		transactor.close();
         super.tearDown();
 	}
+    
+    String[] participants = new String[] {"Sue", "Bob", "Tom"};
     
     void assertAmountZero(String message, Double actual) {
     	assertEquals(message, 0, actual, Util.delta);
@@ -68,32 +73,39 @@ public class BackendTest extends ActivityTest
 			}, null);
     }
     
-    public void testEntry() {
-    	int entryId = transactor.addEntry("Bob", 100.5, null, "gas", true);
-    	assertEquals(transactor.getNewEntryId() - 1, entryId);
+    void assertShareMap(ShareMap actual, Object... expected) {
+//    	System.out.println(actual.toString()); 			/* ascending order of keys by default */
     	
-    	transactor.fetchEntry(entryId, 
-    		new Transactor.QueryEvaluator<Void>() {
-				public Void evaluate(Cursor cursor, Void defaultResult, Object... params) {
-			    	assertNotNull(cursor);
-			    	assertTrue(cursor.moveToFirst());
-					assertEquals("Bob", cursor.getString(1));
-					assertEquals(100.5, cursor.getDouble(2));
-					assertEquals(null, cursor.getString(3));
-					String now = Helper.timestampNow();
-					assertEquals(now.substring(0, 16), 
-							cursor.getString(4).substring(0, 16));
-					assertEquals("gas", cursor.getString(5));
-			    	assertTrue(cursor.getInt(6) > 0);
-					return defaultResult;
-				}
-			}, null);    	
-		
-		assertEquals(1, transactor.removeEntry(entryId));
-		assertEntrySize(0, entryId);
-	}
-    
-    String[] participants = new String[] {"Sue", "Bob", "Tom"};
+    	int len = expected.length;
+    	boolean mapEntry = len > 1 && expected[0] instanceof String && expected[1] instanceof Double;
+    	assertEquals("unexpected map size.", len, (mapEntry ? 2 : 1) * actual.size());
+    	if (len < 1) 
+    		return;
+    	
+    	if (mapEntry) {
+	    	Iterator<Map.Entry<String, Double>> it = actual.entrySet().iterator();
+	    	for (int i = 0; i < len; i+=2) {
+	    		Map.Entry<String, Double> entry = it.next();
+	    		assertEquals(expected[i].toString(), entry.getKey());
+	    		assertEquals((Double)expected[i + 1], entry.getValue(), Transactor.minAmount);
+	    	}
+    	}
+    	else if (expected[0] instanceof Double) {
+	    	Iterator<Double> it = actual.values().iterator();
+	    	for (int i = 0; i < len; i++) 
+	    		assertEquals((Double)expected[i], it.next(), Transactor.minAmount);
+    	}
+    	else if (expected[0] instanceof String) {
+	    	Iterator<String> it = actual.keySet().iterator();
+	    	for (int i = 0; i < len; i++) 
+	    		assertEquals(expected[i].toString(), it.next());
+    	}
+    	else
+    		throw new IllegalArgumentException();
+    	
+    	if (actual.getAmount() != null)
+    		assertTrue("missing completeness", actual.isComplete());
+    }
     
     public void testShareMap() throws ShareMap.PolicyException {
     	ShareMap map = new ShareMap(participants, new Double[] {200.,null,300.});
@@ -143,13 +155,15 @@ public class BackendTest extends ActivityTest
     	assertShareMap(map, Util.placeholder(1), -60., Util.placeholder(2), -20., Util.placeholder(3), -40.);
     	map.updateWith(120., "1*3");
     	assertShareMap(map, Util.placeholder(1, 1), -40., Util.placeholder(1, 2), -40., Util.placeholder(1, 3), -40.);
+    	map.updateWith(120., "1*1");
+    	assertShareMap(map, Util.placeholder(1, 1), -120.);
     	map.updateWith(120., "0:1*2:4");
     	assertShareMap(map, Util.placeholder(1), 0., Util.placeholder(2, 1), -20., Util.placeholder(2, 2), -20., Util.placeholder(3), -80.);
     	map.renameWith(participants);
     	assertShareMap(map, "Bob", -20., "Sue", 0., "Tom", -20., Util.placeholder(3), -80.);
     	map.updateWith(120., "Tom=2\nSue=3\nBob=1");
     	assertShareMap(map, "Bob", -20., "Sue", -60., "Tom", -40.);
-    	map.updateWith(120., "Tom=20.\nSue=-60.\nBob=40.");
+    	map.updateWith(0., "Tom=20.\nSue=-60.\nBob=40.");
     	assertShareMap(map, "Bob", 40., "Sue", -60., "Tom", 20.);
     	
     	try {
@@ -182,41 +196,41 @@ public class BackendTest extends ActivityTest
 		} catch (ShareMap.PolicyException e) {
 			assertEquals(1, e.loc);
 		}
+    	try {
+			map.updateWith(120., "0:1*:4");
+			fail(ShareMap.PolicyException.INVALID);
+		} catch (ShareMap.PolicyException e) {
+			assertEquals(1, e.loc);
+		}
     	
-    	map = new ShareMap((Object)participants, (Object)new Double(300.));
+    	map = new ShareMap(/*(Object)participants, (Object)new Double(300.)*/);
     	assertShareMap(map);
     }
     
-    void assertShareMap(ShareMap actual, Object... expected) {
-//    	System.out.println(actual.toString()); 			/* ascending order of keys by default */
+    public void testEntry() {
+    	int entryId = transactor.addEntry("Bob", 100.5, null, "gas", true);
+    	assertEquals(transactor.getNewEntryId() - 1, entryId);
     	
-    	int len = expected.length;
-    	boolean mapEntry = len > 1 && expected[0] instanceof String && expected[1] instanceof Double;
-    	assertEquals("unexpected map size.", len, (mapEntry ? 2 : 1) * actual.size());
-    	if (len < 1) 
-    		return;
-    	
-    	if (mapEntry) {
-	    	Iterator<Map.Entry<String, Double>> it = actual.entrySet().iterator();
-	    	for (int i = 0; i < len; i+=2) {
-	    		Map.Entry<String, Double> entry = it.next();
-	    		assertEquals(expected[i].toString(), entry.getKey());
-	    		assertEquals((Double)expected[i + 1], entry.getValue(), Transactor.minAmount);
-	    	}
-    	}
-    	else if (expected[0] instanceof Double) {
-	    	Iterator<Double> it = actual.values().iterator();
-	    	for (int i = 0; i < len; i++) 
-	    		assertEquals((Double)expected[i], it.next(), Transactor.minAmount);
-    	}
-    	else if (expected[0] instanceof String) {
-	    	Iterator<String> it = actual.keySet().iterator();
-	    	for (int i = 0; i < len; i++) 
-	    		assertEquals(expected[i].toString(), it.next());
-    	}
-    	else
-    		throw new IllegalArgumentException();
-    }
+    	transactor.fetchEntry(entryId, 
+    		new Transactor.QueryEvaluator<Void>() {
+				public Void evaluate(Cursor cursor, Void defaultResult, Object... params) {
+			    	assertNotNull(cursor);
+			    	assertTrue(cursor.moveToFirst());
+					assertEquals("Bob", cursor.getString(1));
+					assertEquals(100.5, cursor.getDouble(2));
+					assertEquals(null, cursor.getString(3));
+					String now = Helper.timestampNow();
+					assertEquals(now.substring(0, 16), 
+							cursor.getString(4).substring(0, 16));
+					assertEquals("gas", cursor.getString(5));
+			    	assertTrue(cursor.getInt(6) > 0);
+					return defaultResult;
+				}
+			}, null);    	
+		
+		assertEquals(1, transactor.removeEntry(entryId));
+		assertEntrySize(0, entryId);
+	}
     
     void zeroSumTest(int entry, String andCondition) {
 		double sum = transactor.getSum("entry=" + entry + andCondition);
@@ -310,6 +324,9 @@ public class BackendTest extends ActivityTest
  	}
     
     void saveTest(String suffix) {
+    	if (suffix.length() < 1)
+    		return;
+    	
     	String tableName = transactor.tableName(suffix);
     	transactor.drop(tableName);
     	assertTrue(transactor.saveAs(suffix));
@@ -319,7 +336,7 @@ public class BackendTest extends ActivityTest
     void loadTest(String suffix) {
     	String tableName = transactor.tableName(suffix);
     	assertTrue(transactor.savedTables().contains(tableName));
-    	transactor.drop(transactor.table1);
+    	transactor.drop(transactor.tableName(null));
 		assertTrue(transactor.loadFrom(suffix));
     }
     
@@ -463,6 +480,14 @@ public class BackendTest extends ActivityTest
     		assertAmountZero("Total is wrong.", total);
     }
     
+    public String[] entries = null;
+    
+    void scenarioTest(String suffix, int count) {
+    	this.entries = transactor.getEntryStrings("");
+    	assertEquals(count, this.entries.length);
+    	this.suffix = suffix;
+    }
+   
     public void test_Scenario1() {
     	//	cost sharing on a trip
     	submissionTest("Tom", 50, "stake");
@@ -480,7 +505,7 @@ public class BackendTest extends ActivityTest
    	
     	compensationTest(null, -43.33, -3.33, -3.33);
     	
-    	saveTest("Scenario1");
+    	scenarioTest("Scenario1", 5);
  	}
     
     public void test_Scenario2() {
@@ -497,7 +522,7 @@ public class BackendTest extends ActivityTest
    	
     	compensationTest(null, 6.67, -13.33, -3.33);
     	
-    	saveTest("Scenario2");
+    	scenarioTest("Scenario2", 4);
  	}
     
     public void test_Scenario3() {
@@ -511,7 +536,7 @@ public class BackendTest extends ActivityTest
    	
     	compensationTest(null, 70., -110., -10.);
     	
-    	saveTest("Scenario3");
+    	scenarioTest("Scenario3", 4);
  	}
     
     public void test_Scenario4() {
@@ -529,7 +554,7 @@ public class BackendTest extends ActivityTest
     	
     	entry = compensationTest("1:0:1", -15., -60., 25.);
     	
-    	saveTest("Scenario4");
+    	scenarioTest("Scenario4", 5);
  	}
     
 }

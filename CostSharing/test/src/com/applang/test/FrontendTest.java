@@ -26,7 +26,6 @@ public class FrontendTest extends ActivityTest
         transactor = new Transactor(this.getActivity());
         
         super.setUp();	//	database file exists ?
-    	
     }
 
 	@Override
@@ -39,26 +38,12 @@ public class FrontendTest extends ActivityTest
     	transactor.clear();
 	}
     
-    public void testPaymentEditView (){
-    	ShareMap sm = transactor.rawQuery("select name, amount from " + transactor.table1, null, 
-			new QueryEvaluator<ShareMap>() {
-				public ShareMap evaluate(Cursor cursor, ShareMap defaultResult, Object... params) {
-					ShareMap map = new ShareMap();
-					
-					if (cursor.moveToFirst()) 
-		    			do {
-		    				String name = cursor.getString(0);
-		    				if (map.containsKey(name))
-		    					name=name+"_";
-		    				map.put(name, cursor.getDouble(1));
-		    			} while (cursor.moveToNext());
-		    		
-					return map;
-				}
-			}, null);
-    	
-    	System.out.println(sm.toString());
-    	assertTrue(sm.size() > 0);
+    public void testEntries() {
+    	String[] entries = transactor.getEntryStrings("");;
+    	for (String string : entries) {
+        	System.out.println(string);
+		}
+    	assertTrue(entries.length > 0);
     }
     
 }

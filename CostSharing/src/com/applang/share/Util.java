@@ -1,7 +1,5 @@
 package com.applang.share;
 
-import java.io.*;
-import java.text.SimpleDateFormat;
 import java.util.*;
 
 public class Util 
@@ -56,6 +54,7 @@ public class Util
 		return value != null && value.length() > 0;
 	}
 
+	@SuppressWarnings("unchecked")
 	public static <T> String join(String delimiter, T... params) {
 	    StringBuilder sb = new StringBuilder();
 	    Iterator<T> iter = new ArrayList<T>(Arrays.asList(params)).iterator();
@@ -76,6 +75,18 @@ public class Util
         }
     }
 
+    public static boolean embedsLeft(String whole, String part) {
+		return whole.contains(part) && !whole.startsWith(part);
+	}
+
+    public static boolean embedsRight(String whole, String part) {
+		return whole.contains(part) && !whole.endsWith(part);
+	}
+
+    public static boolean embeds(String whole, String part) {
+		return embedsLeft(whole, part) && embedsRight(whole, part);
+	}
+
 	public static double delta = 0.00001;
 	
 	public static String placeholderIndicator = "_";
@@ -84,13 +95,26 @@ public class Util
 		return placeholderIndicator.concat(placeholderIndicator).concat(placeholderIndicator) + join(placeholderIndicator, nums);
     }
 	
-	public static boolean isValidName(String name) {
-		return notNullOrEmpty(name) && !name.startsWith(placeholderIndicator) && !name.contains("=");
+	public static String tableName = "KITTY";
+	
+	public static String policyOperators = ":*=";
+	
+	public static boolean maybePolicy(String policy) {
+		return embeds(policy, ":") || embeds(policy, "*") || embedsLeft(policy, "=");
 	}
-
-	public static native void alert(String msg)
-	/*-{
-		$wnd.alert(msg);
-	}-*/;
+		
+	public static boolean isValidName(String name) {
+		if (notNullOrEmpty(name)) {
+			boolean noOps = true;
+			for (char op : policyOperators.toCharArray())
+				noOps &= !name.contains(String.valueOf(op));
+			
+			return noOps && 
+					!name.startsWith(placeholderIndicator) && 
+					!name.equals(tableName);
+		}
+		else
+			return false;
+	}
 
 }

@@ -21,21 +21,41 @@ public class ShareMap extends TreeMap<String, Double>
 		public static String INVALID = "invalid sharing policy";
 	}
 	
-	public ShareMap(Object... params) {
-		this.names = Util.param(null, 0, params);
-		this.amount = Util.param(null, 1, params);
+	public ShareMap(/*Object... params*/) {
+//		this.names = Util.param(null, 0, params);
+//		this.amount = Util.param(null, 1, params);
 	}
 	
-	String[] names = null;
-	Double amount = null;
+	private String[] names = null;
+	private Double amount = null;
 	
+	/** @hide */ public String[] getNames() {
+		return names;
+	}
+
+	/** @hide */ public void setNames(String[] names) {
+		this.names = names;
+	}
+
+	/** @hide */ public Double getAmount() {
+		return amount;
+	}
+
+	/** @hide */ public void setAmount(Double amount) {
+		this.amount = amount;
+	}
+	
+	/** @hide */ public boolean hasSpender() {
+		return amount != null && Util.isAvailable(0, names);
+	}
+
     /**
 	 * creates a sorted map of shares for a number of sharers according to a sharing policy.
 	 * Integers separated by colons are interpreted as proportions of shares.
 	 * If no proportions are specified uniform sharing is assumed (amount divided by the number of sharers).
 	 * @param names	the array of names of the sharers (not necessarily sorted)
 	 * @param amount	the value of the amount to share
-	 * @param proportions	given proportions for the sharers according to the order of the names
+	 * @param policy	a <code>String</code> defining proportions for the sharers according to the order of the names
      */
     public ShareMap(String[] names, double amount, String policy) {
     	this.names = names;
@@ -56,8 +76,10 @@ public class ShareMap extends TreeMap<String, Double>
 		}
     }
     
-    public void updateWith(double amount, String policy) throws PolicyException {
+    /** @hide */ public void updateWith(double amount, String policy) throws PolicyException {
     	this.clear();
+		
+		this.amount = amount;
     	
 		String[] parts = new String[0];
 		List<String> names = new ArrayList<String>();
@@ -67,11 +89,11 @@ public class ShareMap extends TreeMap<String, Double>
 			for (int i = list.size() - 1; i > -1; i--) {
 				String part = list.get(i).trim();
 				if (part.contains("*")) {
-					String[] facts = part.split("\\*");
-					Integer factor = Util.parseInt(1, facts[1]);
+					String[] facts = part.split("\\*", 2);
+					Integer factor = Util.parseInt(0, facts[1]);
 					if (factor == null || factor < 1) 
 						throw new PolicyException(1);
-					else if (factor > 1) {
+					else {
 						list.remove(i);
 						for (int j = factor; j > 0; j--) {
 							list.add(i, facts[0]);
@@ -121,7 +143,7 @@ public class ShareMap extends TreeMap<String, Double>
 		}
 		
 		if (!Arrays.asList(proportions).contains(null)) {
-			Double[] distributed = distribute(-amount, proportions);
+			Double[] distributed = distribute(-this.amount, proportions);
 			for (int i = 0; i < distributed.length; i++)
 				put(names.get(i), distributed[i]);
 		}
@@ -130,14 +152,13 @@ public class ShareMap extends TreeMap<String, Double>
 				if (integer != null)
 					throw new PolicyException(3);
 		
-		this.amount = amount;
 		if (paired)
 			this.names = names.toArray(new String[0]);
 		else
 			renameWith(this.names);
     }
     
-    public void renameWith(String... names) {
+    /** @hide */ public void renameWith(String... names) {
     	if (Util.isNullOrEmpty(names))
     		return;
     	
@@ -189,10 +210,12 @@ public class ShareMap extends TreeMap<String, Double>
     	updateWith(amount, portions);
     }
     
-    public void updateWith(double amount, Double[] portions) {
+    /** @hide */ public void updateWith(double amount, Double[] portions) {
     	this.clear();
+		
+		this.amount = amount;
     	
-    	int n = Util.isNullOrEmpty(this.names) ? 0 : this.names.length;
+    	int n = this.names == null ? 0 : this.names.length;
     	if (n > 0) {
     		double portion = amount / n;
     		
@@ -210,9 +233,17 @@ public class ShareMap extends TreeMap<String, Double>
 			
 			put(this.names[0], -amount);
 		}
-		
-		this.amount = amount;
 	}
+    /**
+     * @param name	the name of the sharer in question
+     * @return	the amount of the sharer 's portion, if null, a portion for the sharer in question doesn't exist.
+     */
+    public Double getPortion(String name) {
+    	if (containsKey(name)) 
+    		return -get(name);
+    	else
+    		return null;
+    }
     /**
      * calculates the sum of all the values in the map
      * @return	the value of the sum
@@ -248,11 +279,17 @@ public class ShareMap extends TreeMap<String, Double>
 			}
     	}
     }
+    /**
+     * @return	true if the sum of the shares and the amount is zero
+     */
+    public boolean isComplete() {
+    	return this.amount != null && Math.abs(this.amount + sum()) < Util.delta;
+    }
     
     /**
      * calculates the distribution of an amount according to given proportions
      * @param amount
-     * @param proportions
+	 * @param proportions	given proportions for the sharers according to the order of the names
      * @return	an array of distributed values
      */
     public Double[] distribute(double amount, Integer[] proportions) {

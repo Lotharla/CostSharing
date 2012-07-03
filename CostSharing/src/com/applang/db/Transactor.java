@@ -340,7 +340,7 @@ public class Transactor extends DbAdapter implements java.io.Serializable
 			}, new String[0]);
     }
     /**
-     * @param clause	a condition constraining the query through a where clause
+     * @param clause	the condition constraining the query through a where clause
      * @return	a sorted array of entries identified by their id
      */
     public Integer[] getEntryIds(String clause) {
@@ -355,6 +355,43 @@ public class Transactor extends DbAdapter implements java.io.Serializable
 					return ids.toArray(defaultResult);
 				}
 			}, new Integer[0]);
+    }
+    /**
+     * @param clause	the condition constraining the query through a where clause
+     * @return	the textual representations of all the entries to the active database table
+     */
+    public String[] getEntryStrings(String clause) {
+		return rawQuery("select distinct entry from " + table1 + 
+				(Util.notNullOrEmpty(clause) ? " where " + clause : ""), null, 
+			new QueryEvaluator<String[]>() {
+				public String[] evaluate(Cursor cursor, String[] defaultResult, Object... params) {
+			    	ArrayList<String> strings = new ArrayList<String>();
+			    	if (cursor.moveToFirst()) do {
+		       			strings.add(getEntryString(cursor.getInt(0)));
+		       		} while (cursor.moveToNext());
+					return strings.toArray(defaultResult);
+				}
+			}, new String[0]);
+    }
+    /**
+     * @param entryId	the integer value identifying the entry in question
+     * @return	textual representation of the entry to the active database table
+     */
+    public String getEntryString(int entryId) {
+		return rawQuery("select * from " + table1 + " where entry=" + entryId, null, 
+			new QueryEvaluator<String>() {
+				public String evaluate(Cursor cursor, String defaultResult, Object... params) {
+					String s = "";
+			    	if (cursor.moveToFirst()) {
+			    		s += String.format("Entry %d on %s comment '%s'", cursor.getInt(0), cursor.getString(4), cursor.getString(5));
+			    		do {
+			    			String name = isInternal(cursor.getString(1)) ? table1 : cursor.getString(1);
+			    			s += String.format(" : %s=%s", name, Helper.formatAmount(cursor.getDouble(2)));
+			       		} while (cursor.moveToNext());
+			    	}
+					return s;
+				}
+			}, "");
     }
     /**
      * @param clause	a condition constraining the query through a where clause
@@ -455,10 +492,13 @@ public class Transactor extends DbAdapter implements java.io.Serializable
      * @return	the complete SQLite table name
      */
     public String tableName(String suffix) {
-    	return table1 + "_" + suffix;
+    	if (suffix == null)
+    		return table1;
+    	else
+    		return table1 + "_" + suffix;
     }
     /**
-     * changes the name of the table that has been worked on via transactions (current table). 
+     * changes the name of the table that has been worked on with transactions (current table). 
      * Thus this table is 'saved' in the same database. Note that the current table is non-existing after this operation. 
      * In order to continue the current table has to be restored (loadFrom) or recreated (clear).
      * @param newSuffix	the <code>String</code> to append to the name of the current table in order to form the new table name 
@@ -665,7 +705,7 @@ public class Transactor extends DbAdapter implements java.io.Serializable
     }
 
     static {
-    	tableDefs.put("kitty", 
+    	tableDefs.put(Util.tableName, 
 			"entry integer not null," +		//	unique for the entries, reference for the portions
 			"name text not null," +			//	the person involved
 			"amount real not null," +		//	the amount of money, negative for portions

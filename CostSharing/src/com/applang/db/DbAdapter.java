@@ -2,7 +2,6 @@ package com.applang.db;
 
 import java.io.File;
 import java.util.*;
-import java.util.regex.Pattern;
 
 import android.content.Context;
 import android.content.ContentValues;
