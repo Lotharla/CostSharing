@@ -13,12 +13,16 @@
 	 <string name="amount">Wieviel?</string>
 	 <string name="submitter">Wer bezahlt?</string>
 	 <string name="purpose">Für was?</string>
-	 <string name="first_participant">Wer beteiligt sich?  </string>
-	 <string name="next_participant">Wer noch?</string>
-	 <string name="share">Mit vieviel?</string>
+	 <string name="parts">Beteiligt sind...</string>
 	 <string name="plus">+</string>
+	 <string name="minus">-</string>
+	 <string name="example">Bsp:...Konrad</string>
+	 <string name="howMuch">mit 100</string>
+	 <string name="what">€</string>
+	 <string name="as">als Nehmer</string>
+	 <string name="check_all">Alle gleich:</string>
 	 <string name="confirm">OK</string>
 	 <string formatted="false" name="payment_message_template">
-        Sub:\'%s\' Amo: \'%s\' Com:\'%s\' Part:\'%s\' Share:\'%s\' 
+        Sub:\'%s\' Amou: \'%s\' Com:\'%s\' Nam:\'%s\' Typ:\'%s\' Share:\'%s\' Curr:\'%s\'
         </string>
 </resources>

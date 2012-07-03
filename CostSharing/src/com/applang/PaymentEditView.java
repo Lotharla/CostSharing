@@ -17,7 +17,6 @@ import com.applang.db.*;
 import com.applang.share.ShareMap;
 
 public class PaymentEditView extends Activity {
-	private static final int TYPE_NUMBER_FLAG_DECIMAL = 0;
 	private Transactor transactor;
 			ShareMap sharemap;
 	        EditText mAmountText;
@@ -25,17 +24,27 @@ public class PaymentEditView extends Activity {
 	        EditText mPurposeText;
 	        EditText mFirstParticipantText;
 	        EditText mFirstShareText;
-	        EditText etLeft;
-	        EditText etRight;
+	        EditText mFirstTypeText;
+	        EditText mFirstAsText;
+	        EditText etName;
+	        EditText etShare;
+	        EditText etType;
+	        EditText etAs;
 	        String firstShareString;
 	        String firstParticipantString;
+	        String firstTypeString;
+	        String firstAsString;
 	        String shareString;
 			String amountString;
 			String nameString;
+			String typeString;
+			String asString;
 			String submitter;
 			String comment;
 			ArrayList<String> names;
 			ArrayList<Double> shares;
+			ArrayList<String> currencies;
+			ArrayList<String> stakeholderTypes;
 			Double firstShare;
 			Double share;
 			Double amount;
@@ -52,6 +61,8 @@ public class PaymentEditView extends Activity {
         mPurposeText = (EditText) findViewById(R.id.purpose);
         mFirstParticipantText = (EditText) findViewById(R.id.first_participant);
         mFirstShareText = (EditText) findViewById(R.id.first_share);
+        mFirstTypeText = (EditText) findViewById(R.id.first_type);
+        mFirstAsText = (EditText) findViewById(R.id.first_as);
         Button confirmButton = (Button) findViewById(R.id.confirm);
         Button plus = (Button) findViewById(R.id.plus);
         
@@ -80,37 +91,36 @@ public class PaymentEditView extends Activity {
 		  TableLayout tl = (TableLayout) findViewById(R.id.recip_table);
 		  TableRow tr = new TableRow(this);
 		  LayoutParams lp = new LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT);
-		  tr.setLayoutParams(new LayoutParams(LayoutParams.FILL_PARENT, LayoutParams.WRAP_CONTENT));
 		  
 	      participantNum++;
 //	      tr.setId(participantNum);
 	      
-		  etLeft = new EditText(this);
-		  etLeft.setLayoutParams(lp);
-		  etLeft.setId(100 + participantNum);	
+		  etName = new EditText(this);
+		  etName.setLayoutParams(lp);
+		  etName.setId(100 + participantNum);	
 		  
-		  etRight = new EditText(this);
-		  etRight.setLayoutParams(lp);
-		  etRight.setInputType(InputType.TYPE_CLASS_NUMBER);
-		  etRight.setId(200 + participantNum);
+		  etShare = new EditText(this);
+		  etShare.setLayoutParams(lp);
+		  etShare.setInputType(InputType.TYPE_CLASS_NUMBER);
+		  etShare.setId(200 + participantNum);
 		  
-		  Button rbRight = new Button(this);
-		  rbRight.setLayoutParams(lp);
-		  rbRight.setText(R.string.plus);
+		  etType = new EditText(this);
+		  etType.setLayoutParams(lp);
+		  etType.setId(300 + participantNum);
+		  
+		  etAs = new EditText(this);
+		  etAs.setLayoutParams(lp);
+		  etAs.setId(400 + participantNum);	
+		  
 
-		  tr.addView(etLeft);
-		  tr.addView(etRight);
-		  tr.addView(rbRight);
+		  tr.addView(etName);
+		  tr.addView(etShare);
+		  tr.addView(etType);
+		  tr.addView(etAs);
 
 		  tl.addView(tr, new TableLayout.LayoutParams(LayoutParams.FILL_PARENT, LayoutParams.WRAP_CONTENT));
-		  
-		  rbRight.setOnClickListener(new View.OnClickListener() {
-	        	public void onClick(View view) {
-	        		createTableRow(view);  	
-	        	}
-
-	        });    
-		}
+		  	  
+	}
 	
 	private void getEntryData() {
 		
@@ -133,8 +143,12 @@ public class PaymentEditView extends Activity {
 		if (participantNum < 2) {
 			names = new ArrayList<String>();
 			shares = new ArrayList<Double>();
+			currencies = new ArrayList<String>();
+			stakeholderTypes = new ArrayList<String>();
 			
 			firstParticipantString = mFirstParticipantText.getText().toString();
+			firstTypeString = mFirstTypeText.getText().toString();
+			firstAsString = mFirstAsText.getText().toString();
 			
 			try{
 				firstShareString = mFirstShareText.getText().toString();
@@ -144,10 +158,14 @@ public class PaymentEditView extends Activity {
 			}
 			names.add(firstParticipantString);
 			shares.add(firstShare);
+			currencies.add(firstTypeString);
+			stakeholderTypes.add(firstAsString);
 			
 		}else if (participantNum > 1) {
 			names = new ArrayList<String>();
 			shares = new ArrayList<Double>();
+			currencies = new ArrayList<String>();
+			stakeholderTypes = new ArrayList<String>();
 			
 			if (mFirstParticipantText.length() > 0){
 				firstParticipantString = mFirstParticipantText.getText().toString();
@@ -160,27 +178,53 @@ public class PaymentEditView extends Activity {
 			}catch(Exception e ){
 				firstShare=0.0;
 			}
+			try{
+				firstTypeString = mFirstTypeText.getText().toString();
+			}catch(Exception e ){
+				firstTypeString="€";
+			}
+			try{
+				firstAsString = mFirstAsText.getText().toString();
+			}catch(Exception e ){
+				firstAsString="N";	
+			}
 			names.add(firstParticipantString);
 			shares.add(firstShare);
+			currencies.add(firstTypeString);
+			stakeholderTypes.add(firstAsString);
 			
 			for (int i = 2; i < participantNum +1; i++){
 				
-				EditText etLeft = (EditText) findViewById(100 + i);
-				EditText etRight = (EditText) findViewById(200 + i);
+				EditText etName = (EditText) findViewById(100 + i);
+				EditText etShare = (EditText) findViewById(200 + i);
+				EditText etType = (EditText) findViewById(300 + i);
+				EditText etAs = (EditText) findViewById(400 + i);
 			
-				if(etLeft.length() > 0){
-					nameString = etLeft.getText().toString();
+				if(etName.length() > 0){
+					nameString = etName.getText().toString();
 				}else{
 					nameString = "Noname" + i;
 				}
 				try{
-					shareString = etRight.getText().toString();
+					shareString = etShare.getText().toString();
 					share= Double.parseDouble(shareString);
 				}catch(Exception e ){
 					share=0.0;
 				}
+				try{
+					typeString = etType.getText().toString();
+				}catch(Exception e ){
+					typeString="€";
+				}
+				try{
+					asString = etAs.getText().toString();
+				}catch(Exception e ){
+					asString="N";	
+				}
 				names.add(nameString);
 				shares.add(share);
+				currencies.add(typeString);
+				stakeholderTypes.add(asString);
 				
 			}					
 		} 	
@@ -207,7 +251,7 @@ public class PaymentEditView extends Activity {
 		String mPaymentMessageTemplate =
 	        	getString(R.string.payment_message_template);
 		String message = 
-				String.format(mPaymentMessageTemplate,submitter, amount.toString(), comment, names.toString(), shares.toString());
+				String.format(mPaymentMessageTemplate,submitter, amount.toString(), comment, names.toString(), stakeholderTypes.toString(), shares.toString(), currencies.toString());
 		
 		Toast.makeText(this, message, Toast.LENGTH_LONG).show();	 
 		}
