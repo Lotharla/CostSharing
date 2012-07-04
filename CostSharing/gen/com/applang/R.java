@@ -15,13 +15,17 @@ public final class R {
     }
     public static final class id {
         public static final int amount=0x7f050003;
-        public static final int confirm=0x7f050009;
-        public static final int first_participant=0x7f050006;
-        public static final int first_share=0x7f050007;
+        public static final int check_all=0x7f050007;
+        public static final int confirm=0x7f05000d;
+        public static final int first_as=0x7f05000c;
+        public static final int first_participant=0x7f050009;
+        public static final int first_share=0x7f05000a;
+        public static final int first_type=0x7f05000b;
         public static final int lower_bottoms=0x7f050001;
-        public static final int plus=0x7f050008;
+        public static final int minus=0x7f050006;
+        public static final int plus=0x7f050005;
         public static final int purpose=0x7f050004;
-        public static final int recip_table=0x7f050005;
+        public static final int recip_table=0x7f050008;
         public static final int submitter=0x7f050002;
         public static final int upper_bottoms=0x7f050000;
     }
@@ -33,19 +37,23 @@ public final class R {
         public static final int account=0x7f040004;
         public static final int amount=0x7f040008;
         public static final int app_name=0x7f040000;
+        public static final int as=0x7f040011;
         public static final int button_message_template=0x7f040007;
         public static final int calender=0x7f040006;
-        public static final int confirm=0x7f04000f;
-        public static final int first_participant=0x7f04000b;
+        public static final int check_all=0x7f040012;
+        public static final int confirm=0x7f040013;
+        public static final int example=0x7f04000e;
         public static final int group=0x7f040005;
+        public static final int howMuch=0x7f04000f;
         public static final int mainpage_name=0x7f040001;
-        public static final int next_participant=0x7f04000c;
+        public static final int minus=0x7f04000d;
+        public static final int parts=0x7f04000b;
         public static final int payment=0x7f040003;
-        public static final int payment_message_template=0x7f040010;
+        public static final int payment_message_template=0x7f040014;
         public static final int paypage_name=0x7f040002;
-        public static final int plus=0x7f04000e;
+        public static final int plus=0x7f04000c;
         public static final int purpose=0x7f04000a;
-        public static final int share=0x7f04000d;
         public static final int submitter=0x7f040009;
+        public static final int what=0x7f040010;
     }
 }

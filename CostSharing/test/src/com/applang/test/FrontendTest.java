@@ -39,7 +39,7 @@ public class FrontendTest extends ActivityTest
 	}
     
     public void testEntries() {
-    	String[] entries = transactor.getEntryStrings("");;
+    	String[] entries = transactor.getEntryStrings("", transactor.tableName(null));;
     	for (String string : entries) {
         	System.out.println(string);
 		}

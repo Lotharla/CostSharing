@@ -23,7 +23,7 @@ public class Transactor extends DbAdapter implements java.io.Serializable
 		super(context, params);
 		
 		if (!tableExists(table1))
-			super.createTables(getDb());
+			super.recreateTables(getDb());
 	}
 
 	public Transactor(Object... params) {
@@ -360,14 +360,14 @@ public class Transactor extends DbAdapter implements java.io.Serializable
      * @param clause	the condition constraining the query through a where clause
      * @return	the textual representations of all the entries to the active database table
      */
-    public String[] getEntryStrings(String clause) {
-		return rawQuery("select distinct entry from " + table1 + 
+    public String[] getEntryStrings(String clause, final String tableName) {
+		return rawQuery("select distinct entry from " + tableName + 
 				(Util.notNullOrEmpty(clause) ? " where " + clause : ""), null, 
 			new QueryEvaluator<String[]>() {
 				public String[] evaluate(Cursor cursor, String[] defaultResult, Object... params) {
 			    	ArrayList<String> strings = new ArrayList<String>();
 			    	if (cursor.moveToFirst()) do {
-		       			strings.add(getEntryString(cursor.getInt(0)));
+		       			strings.add(getEntryString(cursor.getInt(0), tableName));
 		       		} while (cursor.moveToNext());
 					return strings.toArray(defaultResult);
 				}
@@ -377,8 +377,8 @@ public class Transactor extends DbAdapter implements java.io.Serializable
      * @param entryId	the integer value identifying the entry in question
      * @return	textual representation of the entry to the active database table
      */
-    public String getEntryString(int entryId) {
-		return rawQuery("select * from " + table1 + " where entry=" + entryId, null, 
+    public String getEntryString(int entryId, String tableName) {
+		return rawQuery("select * from " + tableName + " where entry=" + entryId, null, 
 			new QueryEvaluator<String>() {
 				public String evaluate(Cursor cursor, String defaultResult, Object... params) {
 					String s = "";
@@ -477,7 +477,7 @@ public class Transactor extends DbAdapter implements java.io.Serializable
 		    		
 			    	if (cursor.moveToFirst()) do {
 		        		String name = cursor.getString(0);
-		        		if (name.startsWith(table1 + "_"))
+		        		if (name.startsWith(tableName("")))
 		        			names.add(name);
 		    		} while (cursor.moveToNext());
 					

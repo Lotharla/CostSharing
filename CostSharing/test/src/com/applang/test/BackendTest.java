@@ -483,7 +483,7 @@ public class BackendTest extends ActivityTest
     public String[] entries = null;
     
     void scenarioTest(String suffix, int count) {
-    	this.entries = transactor.getEntryStrings("");
+    	this.entries = transactor.getEntryStrings("", transactor.tableName(null));
     	assertEquals(count, this.entries.length);
     	this.suffix = suffix;
     }
