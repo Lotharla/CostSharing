@@ -65,6 +65,7 @@ public class PaymentEditView extends Activity {
         mFirstAsText = (EditText) findViewById(R.id.first_as);
         Button confirmButton = (Button) findViewById(R.id.confirm);
         Button plus = (Button) findViewById(R.id.plus);
+        Button minus = (Button) findViewById(R.id.minus);
         
         if (mFirstParticipantText != null) {
         	participantNum = 1;  	
@@ -76,6 +77,13 @@ public class PaymentEditView extends Activity {
         	}
 
         });    
+        
+        minus.setOnClickListener(new View.OnClickListener() {
+        	public void onClick(View view) {
+        		removeTableRow(view);  	
+        	}
+
+        });   
         
         confirmButton.setOnClickListener(new View.OnClickListener() {
         	public void onClick(View view) {
@@ -118,9 +126,26 @@ public class PaymentEditView extends Activity {
 		  tr.addView(etType);
 		  tr.addView(etAs);
 
-		  tl.addView(tr, new TableLayout.LayoutParams(LayoutParams.FILL_PARENT, LayoutParams.WRAP_CONTENT));
-		  	  
+		  tl.addView(tr, new TableLayout.LayoutParams(LayoutParams.FILL_PARENT, LayoutParams.WRAP_CONTENT));	  	  
 	}
+	
+	private void removeTableRow(View view) {  		  
+		  TableLayout tl = (TableLayout) findViewById(R.id.recip_table);
+		  TableRow tr;
+		  try{
+			  tr = (TableRow) tl.findFocus().getParent();
+			}catch(Exception e ){
+				tr = null;		
+			}
+		  TableRow firstRow = (TableRow) findViewById(R.id.first_row);
+		  
+		  if (tr != firstRow && tr != null){
+			  tl.removeView(tr);	
+		  }else{
+			  Toast.makeText(this, "No need for delete!", Toast.LENGTH_LONG).show();
+		  }	 	 
+	}
+	
 	
 	private void getEntryData() {
 		

@@ -21,7 +21,8 @@
         </activity>
         <activity
             android:name=".PaymentEditView"
-            android:label="@string/paypage_name" >
+            android:label="@string/paypage_name" 
+            android:windowSoftInputMode="adjustPan">
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
 
