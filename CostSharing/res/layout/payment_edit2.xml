@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="vertical" 
+    android:layout_width="fill_parent"
+	android:layout_height="fill_parent">
+	<Button android:id="@+id/confirm" 
+	  		android:text="@string/confirm"
+			android:layout_width="fill_parent"
+			android:layout_height="wrap_content"/>
+
+	<RelativeLayout android:id="@+id/upperWindow"
+	    android:layout_width="fill_parent"
+	    android:layout_height="wrap_content">      	
+		<EditText android:id="@+id/submitter" 
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
+			android:inputType="textCapWords"
+			android:hint="@string/submitter"/> 	
+		<EditText android:id="@+id/date" 
+			android:layout_toRightOf="@+id/submitter"
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
+			android:inputType="text"
+			android:hint="@string/date"/>
+		<EditText android:id="@+id/amount" 
+			android:layout_toRightOf="@+id/date"
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
+			android:inputType="number"
+			android:hint="@string/amount"/>
+		<EditText android:id="@+id/currency"
+		    android:layout_toRightOf="@+id/amount" 
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
+			android:inputType="text"
+			android:hint="@string/currency"/>
+		
+		<EditText android:id="@+id/purpose"
+		    android:layout_below="@+id/submitter" 
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
+			android:inputType="text"
+			android:hint="@string/purpose"/>		
+		<EditText android:id="@+id/purposeAmount2" 
+			android:layout_below="@+id/submitter"
+			android:layout_toRightOf="@+id/purpose"
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
+			android:inputType="number"
+			android:hint="@string/purposeAmount2"/>
+				
+		<EditText android:id="@+id/participant2" 
+			android:layout_below="@+id/purpose"
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
+			android:inputType="textCapWords"
+			android:hint="@string/participant2"/>
+	    <EditText android:id="@+id/share2" 
+			android:layout_toRightOf="@+id/participant2"
+			android:layout_below="@+id/purpose"
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
+			android:inputType="number"
+			android:hint="@string/share2"/>	
+		<EditText android:id="@+id/type2" 
+			android:layout_toRightOf="@+id/share2"
+			android:layout_below="@+id/purpose"
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
+			android:inputType="text"
+			android:hint="@string/currency"/>
+		
+		<LinearLayout android:orientation="horizontal" 
+		    android:layout_below="@+id/participant2"
+		    android:layout_width="fill_parent"
+			android:layout_height="wrap_content">
+		<Button android:id="@+id/plus2"
+		    android:text="@string/plus2" 
+		    android:layout_width="0dp"
+			android:layout_height="wrap_content"
+			android:paddingLeft="40dp"
+			android:paddingRight="40dp"
+			android:layout_weight="1"/>	
+		<Button android:id="@+id/minus2"
+		    android:text="@string/minus2"
+		    android:layout_width="0dp"
+		    android:layout_height="wrap_content"
+			android:paddingLeft="40dp"
+			android:paddingRight="40dp"
+			android:layout_weight="1"/>
+		</LinearLayout>	
+	</RelativeLayout>
+		
+	<TextView android:id="@+id/dates"
+	    android:textStyle="bold"
+		android:textSize="18sp"
+		android:layout_width="wrap_content" 
+		android:layout_height="wrap_content"/>				
+	<ListView android:id="@+id/submitters_amounts"
+	    android:layout_width="fill_parent"
+		android:layout_height="wrap_content"/>
+	<View android:layout_width="fill_parent"
+	    android:layout_height="1dip"
+	    android:background="?android:attr/listDivider"/>
+	<GridView android:id="@+id/purposes_amounts"
+		android:layout_width="wrap_content" 
+		android:layout_height="wrap_content"
+		android:columnWidth="45dp"
+		android:numColumns="auto_fit"
+		android:verticalSpacing="5dp"
+		android:horizontalSpacing="5dp"
+		android:stretchMode="columnWidth"
+		android:gravity="center"/>
+	<ListView android:id="@+id/participants_shares"
+	    android:layout_width="fill_parent"
+		android:layout_height="wrap_content"/>	
+</LinearLayout>	
+	

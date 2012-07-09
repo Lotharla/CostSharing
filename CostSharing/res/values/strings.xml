@@ -10,19 +10,34 @@
     <string name="button_message_template">
         Bald siehst du hier die \'%s\'-Ansicht!
         </string>
-	 <string name="amount">Wieviel?</string>
-	 <string name="submitter">Wer bezahlt?</string>
-	 <string name="purpose">Für was?</string>
+	 <string name="date">heute</string>
+	 <string name="end_date">Bis wann</string>
+	 <string name="submitter">Wer bezahlte</string>
+	 <string name="amount">wieviel?</string>
+	 <string name="currency">€</string>
+	 <string name="purposeAmount2">und wieviel davon?</string>
+	 <string name="purpose">Wofür</string>
 	 <string name="parts">Beteiligt sind...</string>
+	 <string name="participant2">Wer beteiligt sich</string>
 	 <string name="plus">+</string>
+	 <string name="plus2">Hinzufügen</string>
 	 <string name="minus">-</string>
+	 <string name="minus2">Bearbeiten</string>
 	 <string name="example">Konrad</string>
 	 <string name="howMuch">mit 100</string>
+	 <string name="share2">mit wieviel?</string>
 	 <string name="what">€</string>
 	 <string name="as">als Nehmer</string>
 	 <string name="check_all">Alle gleich:</string>
-	 <string name="confirm">OK</string>
+	 <string name="confirm">Eintrag speichern</string>
 	 <string formatted="false" name="payment_message_template">
         Sub:\'%s\' Amou: \'%s\' Com:\'%s\' Nam:\'%s\' Typ:\'%s\' Share:\'%s\' Curr:\'%s\'
         </string>
+     <string formatted="false" name="payment_message_template2">
+        bezahlte \'%s\' \'%s\' \'%s\' </string>   
+     <string name="single_date_prefix">Am </string>
+     <string name="start_date_prefix">Von </string> 
+     <string name="end_date_prefix">bis </string> 
+     <string name="list_interim_text_submitter">bezahlt</string>
+     <string name="list_interim_text_participant">beteiligt sich mit</string> 
 </resources>

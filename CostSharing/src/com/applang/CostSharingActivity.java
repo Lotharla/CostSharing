@@ -26,7 +26,7 @@ public class CostSharingActivity extends Activity {
 	public void showPaymentView(View clickedButton) {
 		Button button = (Button)clickedButton;
 		Intent activityIntent =
-				new Intent(this, PaymentEditView.class);
+				new Intent(this, PaymentEditView2.class);
 		startActivity(activityIntent);
 		}
 

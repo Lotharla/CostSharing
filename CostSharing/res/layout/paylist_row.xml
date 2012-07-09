@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="horizontal"
+    android:layout_width="fill_parent"
+    android:layout_height="fill_parent">
+        <TextView android:id="@+id/rowId"
+        	android:text="row_id"
+        	android:textStyle="bold"
+		    android:textSize="18sp"
+        	android:padding="2dp"
+        	android:layout_height="fill_parent"
+        	android:layout_width="wrap_content"/>
+        <TextView android:id="@+id/item1"
+        	android:text="col_1"
+        	android:textStyle="bold"
+		    android:textSize="18sp"
+        	android:padding="2dp"
+        	android:layout_height="fill_parent"
+        	android:layout_width="wrap_content"/>
+        <TextView android:id="@+id/text1"
+	        android:text="text"
+	        android:textStyle="bold"
+			android:textSize="18sp"
+	        android:padding="2dp"
+	        android:layout_height="fill_parent"
+	        android:layout_width="wrap_content"/>
+	    <TextView android:id="@+id/item2"
+	        android:text="col_2"
+	        android:textStyle="bold"
+			android:textSize="18sp"
+	        android:padding="2dp"
+	        android:layout_height="fill_parent"
+	        android:layout_width="wrap_content"/>
+	    <TextView android:id="@+id/item3"
+	        android:text="col_3"
+	        android:textStyle="bold"
+			android:textSize="18sp"
+	        android:padding="2dp"
+	        android:layout_height="fill_parent"
+	        android:layout_width="wrap_content"/>
+</LinearLayout>
+
