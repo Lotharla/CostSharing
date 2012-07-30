@@ -20,6 +20,7 @@ public class PaymentEditView extends Activity {
 	private Transactor transactor;
 			ShareMap sharemap;
 	        EditText mAmountText;
+	        EditText mCurrencyText;
 	        EditText mSubmitterText;
 	        EditText mPurposeText;
 	        EditText mFirstParticipantText;
@@ -39,6 +40,7 @@ public class PaymentEditView extends Activity {
 			String nameString;
 			String typeString;
 			String asString;
+			String currency;
 			String submitter;
 			String comment;
 			ArrayList<String> names;
@@ -57,6 +59,7 @@ public class PaymentEditView extends Activity {
         
         transactor = new Transactor(this);
         mAmountText = (EditText) findViewById(R.id.amount);
+        mCurrencyText = (EditText) findViewById(R.id.currency);
         mSubmitterText = (EditText) findViewById(R.id.submitter);
         mPurposeText = (EditText) findViewById(R.id.purpose);
         mFirstParticipantText = (EditText) findViewById(R.id.first_participant);
@@ -152,7 +155,8 @@ public class PaymentEditView extends Activity {
 		try{
 		amountString = mAmountText.getText().toString();
 		amount = Double.parseDouble(amountString);
-	    submitter = mSubmitterText.getText().toString();
+		currency = mCurrencyText.getText().toString();
+		submitter = mSubmitterText.getText().toString();
 	    comment = mPurposeText.getText().toString();
 		}catch(Exception e ){
 			amount=0.0;
@@ -256,7 +260,7 @@ public class PaymentEditView extends Activity {
 	}
 		
 	private void saveData() {
-		
+			// currency, currencies and stakeholderTypes aren't included in saveData yet !
 			if(participantNum < 2 && firstParticipantString.length() < 1){
 				transactor.performSubmission(submitter, amount, comment);
 			}else {
