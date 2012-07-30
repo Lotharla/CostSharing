@@ -7,6 +7,8 @@ import android.database.Cursor;
 import com.applang.db.*;
 import com.applang.share.*;
 
+import static com.applang.test.AssertHelper.*;
+
 public class BackendTest extends ActivityTest 
 {
 	public BackendTest() {
@@ -39,28 +41,161 @@ public class BackendTest extends ActivityTest
     
     String[] participants = new String[] {"Sue", "Bob", "Tom"};
     
-    void assertAmountZero(String message, Double actual) {
-    	assertEquals(message, 0, actual, Util.delta);
-    }
-    
-    void assertAmountEquals(Double expected, Double actual) {
-    	assertEquals(expected, actual, Util.delta);
-    }
-    
-    void assertAmountEquals(String message, Double expected, Double actual) {
-    	assertEquals(message, expected, actual, Util.delta);
-//    	String exp = Util.formatAmount(expected);
-//    	String act = Util.formatAmount(actual);
-//    	assertEquals(message, exp, act);
-    }
-   
-    <T> void assertArrayEquals(String message, T[] expected, T[] actual) {
-    	assertEquals(message, expected.length, actual.length);
-    	for (int i = 0; i < actual.length; i++) 
-        	assertEquals(message, expected[i], actual[i]);
+    public void testShareMap() throws ShareMap.PolicyException {
+    	ShareMap sm = new ShareMap(participants, new Double[] {200.,null,300.});
+    	assertShareMap(sm, 200., 300.);
+    	
+    	sm = new ShareMap(participants, 600.);
+    	assertShareMap(sm, -200., -200., -200.);
+    	
+    	sm = new ShareMap(participants, 600., null, 300.);
+    	assertShareMap(sm, -300., -100., -200.);
+    	assertEquals("Bob", sm.rawMap.firstKey());
+    	
+    	sm = new ShareMap(new String[] {participants[0], "", participants[2]}, 600.);
+    	assertEquals("", sm.rawMap.firstKey());
+    	assertShareMap(sm, -200., -200., -200.);
+    	
+    	assertAmountEquals(-600., sm.sum());
+    	assertAmountEquals(sm.sum(), -sm.negated().sum());
+    	
+    	assertEquals(789, Util.parseInt(null, "\t789 ").intValue());
+    	assertNull(Util.parseInt(null, "\t789. "));
+    	assertNull(Util.parseInt(null, "\t7 89 "));
+    	
+    	assertEquals(789., Util.parseDouble(null, "\t789 ").doubleValue());
+    	assertNotNull(Util.parseDouble(null, "\t789. "));
+    	assertNull(Util.parseDouble(null, "\t7 89 "));
+    	
+    	sm = new ShareMap(participants, 120., "1:1:1");
+    	assertShareMap(sm, -40., -40., -40.);
+    	
+    	sm = new ShareMap(participants, 120., "0:1:2");
+    	assertShareMap(sm, -40., 0., -80.);
+    	
+    	sm = new ShareMap(participants, 150., "");
+    	assertShareMap(sm, -50., -50., -50.);
+    	
+    	sm = new ShareMap(participants, -1., "");
+    	assertShareMap(sm, "Bob", .33, "Sue", .33, "Tom", .33);
+    	
+    	sm = new ShareMap(null, 150., "1:2:3");
+    	assertShareMap(sm, -25., -50., -75.);
+    	
+    	sm = new ShareMap();
+    	sm.updateWith(120., "");
+    	assertShareMap(sm, Util.placeholder(), -120.);
+    	sm.updateWith(120., "3:1:2");
+    	assertShareMap(sm, Util.placeholder(1), -60., Util.placeholder(2), -20., Util.placeholder(3), -40.);
+    	sm.updateWith(120., "1*3");
+    	assertShareMap(sm, Util.placeholder(1, 1), -40., Util.placeholder(1, 2), -40., Util.placeholder(1, 3), -40.);
+    	sm.updateWith(120., "1*1");
+    	assertShareMap(sm, Util.placeholder(1, 1), -120.);
+    	sm.updateWith(120., "0:1*2:4");
+    	assertShareMap(sm, Util.placeholder(1), 0., Util.placeholder(2, 1), -20., Util.placeholder(2, 2), -20., Util.placeholder(3), -80.);
+    	sm.renameWith(participants);
+    	assertShareMap(sm, "Bob", -20., "Sue", 0., "Tom", -20., Util.placeholder(3), -80.);
+    	sm.updateWith(120., "Tom=2\nSue=3\nBob=1");
+    	assertShareMap(sm, "Bob", -20., "Sue", -60., "Tom", -40.);
+    	sm.updateWith(0., "Tom=20.\nSue=-60.\nBob=40.");
+    	assertShareMap(sm, "Bob", -40., "Sue", 60., "Tom", -20.);
+    	
+    	try {
+    		assertArrayEquals(new String[] {"Tom","Sue","Bob"}, sm.getNames());
+			sm.updateWith(120., "3.:1:2");
+	    	assertShareMap(sm, "Bob", -78., "Sue", -39., "Tom", -3.);
+		} catch (ShareMap.PolicyException e) {
+			fail(e.getMessage());
+		}
+    	try {
+			sm.updateWith(120., "Tom=2\n30.\nBob=1");
+			fail(ShareMap.PolicyException.INVALID);
+		} catch (ShareMap.PolicyException e) {
+			assertEquals(2, e.loc);
+		}
+    	try {
+			sm.updateWith(120., "3:1:");
+			fail(ShareMap.PolicyException.INVALID);
+		} catch (ShareMap.PolicyException e) {
+			assertEquals(3, e.loc);
+		}
+    	try {
+			sm.updateWith(120., "3%:1:2");
+			fail(ShareMap.PolicyException.INVALID);
+		} catch (ShareMap.PolicyException e) {
+			assertEquals(3, e.loc);
+		}
+    	try {
+			sm.updateWith(120., "0:1*0:4");
+			fail(ShareMap.PolicyException.INVALID);
+		} catch (ShareMap.PolicyException e) {
+			assertEquals(1, e.loc);
+		}
+    	try {
+			sm.updateWith(120., "0:1*:4");
+			fail(ShareMap.PolicyException.INVALID);
+		} catch (ShareMap.PolicyException e) {
+			assertEquals(1, e.loc);
+		}
+    	try {
+			sm.checkNames(new String[] {null});
+			fail("checkNames should have failed");
+		} catch (ShareMap.PolicyException e) {
+			assertEquals(4, e.loc);
+		}
+    	try {
+			sm.checkNames(new String[] {"Tom","Tom"});
+			fail("checkNames should have failed");
+		} catch (ShareMap.PolicyException e) {
+			assertEquals(4, e.loc);
+		}
+    	
+    	sm = new ShareMap();
+    	assertShareMap(sm);
+    	
+    	String policy = ShareMap.makePolicy(false, null);
+    	assertEquals("", policy);
+    	assertFalse(ShareMap.isPolicy(policy));
+    	
+    	policy = ShareMap.makePolicy(false, participants);
+    	assertTrue(ShareMap.isPolicy(policy));
+    	assertEquals("1:1:1", policy);
+    	
+    	policy = ShareMap.makePolicy(true, participants, 1, 2);
+    	assertTrue(ShareMap.isPolicy(policy));
+    	assertEquals("Sue=1\nBob=2\nTom=0", policy);
+    	
+    	policy = ShareMap.makePolicy(true, participants, 1, 2., null);
+    	assertTrue(ShareMap.isPolicy(policy));
+    	assertEquals("Sue=1\nBob=2.0\nTom=0", policy);
+    	
+		List<String> names = new ArrayList<String>();
+		List<Integer> proportions = new ArrayList<Integer>();
+		List<Double> values = new ArrayList<Double>();
+		assertEquals(3, ShareMap.parsePolicy(policy, "2", names, proportions, values));
+		assertArrayEquals(participants, names.toArray(new String[0]));
+		assertArrayEquals(new Integer[]{1,null,0}, proportions.toArray(new Integer[0]));
+		assertArrayEquals(new Double[]{1.,2.,0.}, values.toArray(new Double[0]));
+		
+    	String policy1 = "1:2.:0";
+    	String policy2 = ShareMap.translatePolicy(policy1, (String[])null);
+    	names.clear();
+		assertEquals(3, ShareMap.parsePolicy(policy2, "", names));
+		for (int i = 0; i < 3; i++)
+			assertEquals(Util.placeholder(1 + i), names.get(i));
+		policy2 = ShareMap.translatePolicy(policy1, participants);
+    	assertEquals(policy, policy2);
+    	
+    	sm = new ShareMap(participants, 120., "1:2:3");
+    	assertShareMap(sm, "Bob", -40., "Sue", -20., "Tom", -60.);
+    	sm.setSpender(participants[0]);
+		sm.checkNames(sm.getKeys().toArray(new String[0]));
+    	assertShareMap(sm, "Sue", -20., "Bob", -40., "Tom", -60.);
+    	sm.setSpender(null);
+    	assertShareMap(sm, "Bob", -40., "Sue", -20., "Tom", -60.);
     }
 
-    void assertEntrySize(final int expected, int entry) {
+    void entrySizeTest(final int expected, int entry) {
     	assertTrue("invalid entry", entry > -1);
     	
     	transactor.fetchEntry(entry, 
@@ -71,140 +206,6 @@ public class BackendTest extends ActivityTest
 					return defaultResult;
 				}
 			}, null);
-    }
-    
-    void assertShareMap(ShareMap actual, Object... expected) {
-//    	System.out.println(actual.toString()); 			/* ascending order of keys by default */
-    	
-    	int len = expected.length;
-    	boolean mapEntry = len > 1 && expected[0] instanceof String && expected[1] instanceof Double;
-    	assertEquals("unexpected map size.", len, (mapEntry ? 2 : 1) * actual.size());
-    	if (len < 1) 
-    		return;
-    	
-    	if (mapEntry) {
-	    	Iterator<Map.Entry<String, Double>> it = actual.entrySet().iterator();
-	    	for (int i = 0; i < len; i+=2) {
-	    		Map.Entry<String, Double> entry = it.next();
-	    		assertEquals(expected[i].toString(), entry.getKey());
-	    		assertEquals((Double)expected[i + 1], entry.getValue(), Transactor.minAmount);
-	    	}
-    	}
-    	else if (expected[0] instanceof Double) {
-	    	Iterator<Double> it = actual.values().iterator();
-	    	for (int i = 0; i < len; i++) 
-	    		assertEquals((Double)expected[i], it.next(), Transactor.minAmount);
-    	}
-    	else if (expected[0] instanceof String) {
-	    	Iterator<String> it = actual.keySet().iterator();
-	    	for (int i = 0; i < len; i++) 
-	    		assertEquals(expected[i].toString(), it.next());
-    	}
-    	else
-    		throw new IllegalArgumentException();
-    	
-    	if (actual.getAmount() != null)
-    		assertTrue("missing completeness", actual.isComplete());
-    }
-    
-    public void testShareMap() throws ShareMap.PolicyException {
-    	ShareMap map = new ShareMap(participants, new Double[] {200.,null,300.});
-    	assertShareMap(map, 200., 300.);
-    	
-    	map = new ShareMap(participants, 600.);
-    	assertShareMap(map, -200., -200., -200.);
-    	
-    	map = new ShareMap(participants, 600., null, 300.);
-    	assertShareMap(map, -300., -100., -200.);
-    	assertEquals("Bob", map.firstKey());
-    	
-    	map = new ShareMap(new String[] {participants[0], "", participants[2]}, 600.);
-    	assertEquals("", map.firstKey());
-    	assertShareMap(map, -200., -200., -200.);
-    	
-    	assertAmountEquals(-600., map.sum());
-    	assertAmountEquals(map.sum(), -map.negated().sum());
-    	
-    	assertEquals(789, Util.parseInt(null, "\t789 ").intValue());
-    	assertNull(Util.parseInt(null, "\t789. "));
-    	assertNull(Util.parseInt(null, "\t7 89 "));
-    	
-    	assertEquals(789., Util.parseDouble(null, "\t789 ").doubleValue());
-    	assertNotNull(Util.parseDouble(null, "\t789. "));
-    	assertNull(Util.parseDouble(null, "\t7 89 "));
-    	
-    	map = new ShareMap(participants, 120., "1:1:1");
-    	assertShareMap(map, -40., -40., -40.);
-    	
-    	map = new ShareMap(participants, 120., "0:1:2");
-    	assertShareMap(map, -40., 0., -80.);
-    	
-    	map = new ShareMap(participants, 150., "");
-    	assertShareMap(map, -50., -50., -50.);
-    	
-    	map = new ShareMap(participants, -1., "");
-    	assertShareMap(map, "Bob", .33, "Sue", .33, "Tom", .33);
-    	
-    	map = new ShareMap(null, 150., "1:2:3");
-    	assertShareMap(map, -25., -50., -75.);
-    	
-    	map = new ShareMap();
-    	map.updateWith(120., "");
-    	assertShareMap(map, Util.placeholder(), -120.);
-    	map.updateWith(120., "3:1:2");
-    	assertShareMap(map, Util.placeholder(1), -60., Util.placeholder(2), -20., Util.placeholder(3), -40.);
-    	map.updateWith(120., "1*3");
-    	assertShareMap(map, Util.placeholder(1, 1), -40., Util.placeholder(1, 2), -40., Util.placeholder(1, 3), -40.);
-    	map.updateWith(120., "1*1");
-    	assertShareMap(map, Util.placeholder(1, 1), -120.);
-    	map.updateWith(120., "0:1*2:4");
-    	assertShareMap(map, Util.placeholder(1), 0., Util.placeholder(2, 1), -20., Util.placeholder(2, 2), -20., Util.placeholder(3), -80.);
-    	map.renameWith(participants);
-    	assertShareMap(map, "Bob", -20., "Sue", 0., "Tom", -20., Util.placeholder(3), -80.);
-    	map.updateWith(120., "Tom=2\nSue=3\nBob=1");
-    	assertShareMap(map, "Bob", -20., "Sue", -60., "Tom", -40.);
-    	map.updateWith(0., "Tom=20.\nSue=-60.\nBob=40.");
-    	assertShareMap(map, "Bob", 40., "Sue", -60., "Tom", 20.);
-    	
-    	try {
-			map.updateWith(120., "Tom=2\n30.\nBob=1");
-			fail(ShareMap.PolicyException.INVALID);
-		} catch (ShareMap.PolicyException e) {
-			assertEquals(4, e.loc);
-		}
-    	try {
-			map.updateWith(120., "3.:1:2");
-			fail(ShareMap.PolicyException.INVALID);
-		} catch (ShareMap.PolicyException e) {
-			assertEquals(3, e.loc);
-		}
-    	try {
-			map.updateWith(120., "3:1:");
-			fail(ShareMap.PolicyException.INVALID);
-		} catch (ShareMap.PolicyException e) {
-			assertEquals(2, e.loc);
-		}
-    	try {
-			map.updateWith(120., "3%:1:2");
-			fail(ShareMap.PolicyException.INVALID);
-		} catch (ShareMap.PolicyException e) {
-			assertEquals(2, e.loc);
-		}
-    	try {
-			map.updateWith(120., "0:1*0:4");
-			fail(ShareMap.PolicyException.INVALID);
-		} catch (ShareMap.PolicyException e) {
-			assertEquals(1, e.loc);
-		}
-    	try {
-			map.updateWith(120., "0:1*:4");
-			fail(ShareMap.PolicyException.INVALID);
-		} catch (ShareMap.PolicyException e) {
-			assertEquals(1, e.loc);
-		}
-    	
-    	map = new ShareMap(/*(Object)participants, (Object)new Double(300.)*/);
-    	assertShareMap(map);
     }
     
     public void testEntry() {
@@ -229,7 +230,7 @@ public class BackendTest extends ActivityTest
 			}, null);    	
 		
 		assertEquals(1, transactor.removeEntry(entryId));
-		assertEntrySize(0, entryId);
+		entrySizeTest(0, entryId);
 	}
     
     void zeroSumTest(int entry, String andCondition) {
@@ -248,9 +249,9 @@ public class BackendTest extends ActivityTest
     			allocation, 
     			null, allocation / 4, allocation / 3);
     	
-    	assertTrue(transactor.allocate(expense, entryId, portions));
+    	assertTrue(transactor.allocate(expense, entryId, portions.rawMap));
     	
-    	assertEntrySize(4, entryId);
+    	entrySizeTest(4, entryId);
     	zeroSumTest(entryId, "");
 		
 		assertNotNull("timestamp missing", transactor.fetchField(entryId, "timestamp"));
@@ -287,20 +288,20 @@ public class BackendTest extends ActivityTest
     	for (Integer id : ids) 
     		if (id > -1) {
     			transactor.removeEntry(id);
-				assertEntrySize(0, id);
+				entrySizeTest(0, id);
 	    	}
     	
     	assertTrue(-1 < transactor.performSubmission(participants[0], 99., "test1"));
     	assertEquals(-2, transactor.performExpense("", "test1", new ShareMap(participants, -100.)));
     	
     	int id = transactor.performExpense("", "test1", new ShareMap(participants, -99.));
-    	assertEntrySize(4, id);
+    	entrySizeTest(4, id);
     	zeroSumTest(id, "");
     	
     	totalTest(99.);
     	
     	id = transactor.performExpense(participants[2], "test2", new ShareMap(participants, 70., "3:0:4"));
-    	assertEntrySize(4, id);
+    	entrySizeTest(4, id);
     	zeroSumTest(id, " and expense > 0");
     }
     
@@ -366,14 +367,14 @@ public class BackendTest extends ActivityTest
     
     void transferTest(String submitter, double amount, String purpose, String recipient) {
     	int entryId = transactor.performTransfer(submitter, amount, purpose, recipient);
-    	assertEntrySize(2, entryId);
+    	entrySizeTest(2, entryId);
     	zeroSumTest(entryId, "");
  	}
     
     void discardTest(int entryId) {
     	int discarded = transactor.performDiscard(entryId);
     	assertTrue("Nothing deleted.", discarded > 0);
-    	assertEntrySize(0, entryId);
+    	entrySizeTest(0, entryId);
  	}
     
     int entryTest(int entry, final int size, final ShareMap shares) {
@@ -387,9 +388,9 @@ public class BackendTest extends ActivityTest
 			    	if (shares == null) 
 						assertEquals(size, cursor.getCount());
 			    	else {
-						assertEquals(size + shares.size(), cursor.getCount());
-						for (String name : shares.keySet()) {
-							double share = shares.get(name);
+						assertEquals(size + shares.rawMap.size(), cursor.getCount());
+						for (String name : shares.rawMap.keySet()) {
+							double share = shares.rawMap.get(name);
 
 							if (cursor.moveToFirst()) do {
 								if (cursor.getString(transactor.columnIndex("timestamp")) == null
@@ -451,12 +452,12 @@ public class BackendTest extends ActivityTest
 		ShareMap deals = new ShareMap(names, amounts);
 		ShareMap shares = new ShareMap(participants, deals.sum(), portions);
     	int entry = transactor.performComplexExpense(deals, purpose, shares);
-    	return entryTest(entry, deals.size() + (deals.containsKey("") ? 1 : 0), shares);
+    	return entryTest(entry, deals.rawMap.size() + (deals.rawMap.containsKey("") ? 1 : 0), shares);
     }
     
     void sharingTest(double expectedExpenses, String policy) {
     	double costs = transactor.expenses();
-		assertEquals("costs are wrong.", expectedExpenses, costs, Transactor.minAmount);
+		assertEquals("costs are wrong.", expectedExpenses, costs, Util.minAmount);
 		ShareMap shares = new ShareMap(participants, costs, policy);
 		assertAmountEquals("Sharing sucks.", costs, shares.negated().sum());
     }
@@ -475,7 +476,7 @@ public class BackendTest extends ActivityTest
     void totalTest(double... expected) {
     	double total = transactor.total();
     	if (expected.length > 0)
-    		assertEquals("unexpected total : " + Helper.formatAmount(total), expected[0], total, Transactor.minAmount);
+    		assertEquals("unexpected total : " + Helper.formatAmount(total), expected[0], total, Util.minAmount);
     	else
     		assertAmountZero("Total is wrong.", total);
     }
@@ -483,9 +484,11 @@ public class BackendTest extends ActivityTest
     public String[] entries = null;
     
     void scenarioTest(String suffix, int count) {
+    	this.suffix = suffix;
     	this.entries = transactor.getEntryStrings("", transactor.tableName(null));
     	assertEquals(count, this.entries.length);
-    	this.suffix = suffix;
+    	String[] comments = transactor.sortedComments();
+    	assertEquals(count, comments.length);
     }
    
     public void test_Scenario1() {

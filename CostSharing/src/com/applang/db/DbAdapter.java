@@ -56,7 +56,7 @@ public class DbAdapter
 				dir.mkdirs();
 			
 			mDb = SQLiteDatabase.openDatabase(
-					Helper.databaseFile().getPath(), 
+				Helper.databaseFile().getPath(), 
            		null, 
            		SQLiteDatabase.CREATE_IF_NECESSARY);
 			
@@ -74,10 +74,20 @@ public class DbAdapter
 	}
 
     public static LinkedHashMap<String, String> tableDefs = new LinkedHashMap<String, String>();
-    List<String> tableList = new ArrayList<String>(tableDefs.keySet());
+    protected List<String> tableList = new ArrayList<String>(tableDefs.keySet());
     public String table1 = "";
 
     protected void createTables(SQLiteDatabase db, Object... params) {
+    	Cursor cursor = null;
+    	try {
+			cursor = rawQuery("pragma foreign_keys = ON", null);
+		} 
+    	catch (SQLiteException e) {}
+    	finally {
+			if (cursor != null)
+				cursor.close();
+		}
+    	
 		for (int i = 0; i < tableList.size(); i++) {
 			String table = tableList.get(i);
 			String sql = String.format("create table %s %s (%s);", 

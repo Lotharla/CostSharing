@@ -31,14 +31,10 @@ public class Transactor extends DbAdapter implements java.io.Serializable
 	}
     
 	private static final String TAG = Transactor.class.getSimpleName();
-	/**
-	 * no discussion about that amount
-	 */
-	public static double minAmount = 0.01;
-    
-    private boolean hasNegativeTotalWith(double amount) {
+	
+	private boolean hasNegativeTotalWith(double amount) {
     	double total = total();
-		if (total - amount < -minAmount) {
+		if (total - amount < -Util.minAmount) {
 			Log.w(TAG, String.format("retrieval of %f is more than allowed : %f", amount, total));
 			return true;
 		}
@@ -73,7 +69,7 @@ public class Transactor extends DbAdapter implements java.io.Serializable
 		if (entryId < 0)
 			return -1;
 		
-    	if (allocate(!internal, entryId, shares)) {
+    	if (allocate(!internal, entryId, shares.rawMap)) {
 			String action = internal ? "reallocation of" : submitter + " expended";
     		Log.i(TAG, String.format("entry %d: %s %f %s for '%s' shared by %s", 
     				entryId, action, Math.abs(amount), currency, comment, shares.toString()));
@@ -100,7 +96,7 @@ public class Transactor extends DbAdapter implements java.io.Serializable
     	
     	double amount = deals.sum();
     	if (Math.abs(amount + shares.sum()) < Util.delta)
-	    	for (Map.Entry<String, Double> deal : deals.entrySet()) {
+	    	for (Map.Entry<String, Double> deal : deals.rawMap.entrySet()) {
 				String name = deal.getKey();
 				
 				if (isInternal(name)) 
@@ -120,7 +116,7 @@ public class Transactor extends DbAdapter implements java.io.Serializable
     				amount, comment, shares.sum()));
     	
     	if (entryId > -1) {
-        	if (allocate(true, entryId, shares)) {
+        	if (allocate(true, entryId, shares.rawMap)) {
         		Log.i(TAG, String.format("entry %d: %s expended %f %s for '%s' shared by %s", 
         				entryId, deals.toString(), Math.abs(amount), currency, comment, shares.toString()));
         	}
@@ -207,7 +203,7 @@ public class Transactor extends DbAdapter implements java.io.Serializable
     	int entryId = getNewEntryId();
     	
 		if (entryId > -1) {
-			for (Map.Entry<String, Double> share : shares.entrySet())
+			for (Map.Entry<String, Double> share : shares.rawMap.entrySet())
 				if (addRecord(entryId, share.getKey(), share.getValue(), currency, Helper.timestampNow(), comment, false) < 0) {
 		    		removeEntry(entryId);
 					return -1;
@@ -238,14 +234,14 @@ public class Transactor extends DbAdapter implements java.io.Serializable
 				" where length(name) > 0 and timestamp not null group by name order by name", null, 
 			new QueryEvaluator<ShareMap>() {
 				public ShareMap evaluate(Cursor cursor, ShareMap defaultResult, Object... params) {
-					ShareMap map = new ShareMap();
+					ShareMap sm = new ShareMap();
 					
 		    		if (cursor.moveToFirst()) do {
-		    			map.put(cursor.getString(0), cursor.getDouble(1));
+		    			sm.rawMap.put(cursor.getString(0), cursor.getDouble(1));
 		    		} while (cursor.moveToNext());
 		    		
-		        	Log.i(TAG, String.format("cash flow : %s", map.toString()));
-					return map;
+		        	Log.i(TAG, String.format("cash flow : %s", sm.toString()));
+					return sm;
 				}
 			}, null);
     }
@@ -258,14 +254,14 @@ public class Transactor extends DbAdapter implements java.io.Serializable
 				" where length(name) > 0 group by name order by name", null, 
 			new QueryEvaluator<ShareMap>() {
 				public ShareMap evaluate(Cursor cursor, ShareMap defaultResult, Object... params) {
-					ShareMap map = new ShareMap();
+					ShareMap sm = new ShareMap();
 					
 					if (cursor.moveToFirst()) do {
-		    			map.put(cursor.getString(0), cursor.getDouble(1));
+		    			sm.rawMap.put(cursor.getString(0), cursor.getDouble(1));
 		    		} while (cursor.moveToNext());
 		    		
-		        	Log.i(TAG, String.format("balances : %s", map.toString()));
-					return map;
+		        	Log.i(TAG, String.format("balances : %s", sm.toString()));
+					return sm;
 				}
 			}, null);
     }
@@ -318,14 +314,14 @@ public class Transactor extends DbAdapter implements java.io.Serializable
     	
     	ShareMap differences = new ShareMap(sortedNames, volume);
     	ShareMap sharedCosts = new ShareMap(sortedNames, volume, sharingPolicy);
-    	differences.minus(sharedCosts.values());
+    	differences.minus(sharedCosts.rawMap.values());
     	
     	ShareMap compensations = balances().negated();
-    	compensations.minus(differences.negated().values());
+    	compensations.minus(differences.negated().rawMap.values());
 		return compensations;
 	}
     /**
-     * @return	a sorted array of names of the participants
+     * @return	a sorted array of all names of the participants
      */
     public String[] sortedNames() {
 		return rawQuery("select distinct name from " + table1 + " where length(name) > 0", null, 
@@ -336,6 +332,21 @@ public class Transactor extends DbAdapter implements java.io.Serializable
 		    			names.add(cursor.getString(0));
 		    		} while (cursor.moveToNext());
 					return names.toArray(defaultResult);
+				}
+			}, new String[0]);
+    }
+    /**
+     * @return	a sorted array of distinct comments
+     */
+    public String[] sortedComments() {
+		return rawQuery("select distinct comment from " + table1 + " where length(comment) > 0", null, 
+			new QueryEvaluator<String[]>() {
+				public String[] evaluate(Cursor cursor, String[] defaultResult, Object... params) {
+			    	TreeSet<String> comments = new TreeSet<String>();
+			    	if (cursor.moveToFirst()) do {
+		    			comments.add(cursor.getString(0));
+		    		} while (cursor.moveToNext());
+					return comments.toArray(defaultResult);
 				}
 			}, new String[0]);
     }
@@ -492,10 +503,14 @@ public class Transactor extends DbAdapter implements java.io.Serializable
      * @return	the complete SQLite table name
      */
     public String tableName(String suffix) {
+    	return tableName(table1, suffix);
+    }
+    
+    protected String tableName(String prefix, String suffix) {
     	if (suffix == null)
-    		return table1;
+    		return prefix;
     	else
-    		return table1 + "_" + suffix;
+    		return prefix + "_" + suffix;
     }
     /**
      * changes the name of the table that has been worked on with transactions (current table). 
@@ -513,6 +528,13 @@ public class Transactor extends DbAdapter implements java.io.Serializable
     		return false;
     		
     	rename(table1, newTableName);
+    	
+    	String oldTableName = tableList.get(1);
+    	if (tableExists(oldTableName)) {
+    		newTableName = tableName(oldTableName, newSuffix);
+        	rename(oldTableName, newTableName);
+    	}
+    	
 		Log.i(TAG, String.format("table saved as '%s'", newTableName));
     	return true;
     }
@@ -531,6 +553,12 @@ public class Transactor extends DbAdapter implements java.io.Serializable
     		return false;
     		
     	rename(oldTableName, table1);
+    	
+    	String newTableName = tableList.get(1);
+    	oldTableName = tableName(newTableName, oldSuffix);
+    	if (tableExists(oldTableName))
+    		rename(oldTableName, newTableName);
+    	
 		Log.i(TAG, String.format("table loaded from '%s'", oldTableName));
     	return true;
     }
@@ -552,7 +580,7 @@ public class Transactor extends DbAdapter implements java.io.Serializable
     		drop(table);
     	
     	super.clear();
-		Log.i(TAG, "table and all saved tables cleared");
+		Log.i(TAG, String.format("table '%s' cleared, all saved tables dropped", table1));
 		setSharingPolicy(null);
     }
 	
@@ -713,6 +741,15 @@ public class Transactor extends DbAdapter implements java.io.Serializable
 			"timestamp text," +				//	if null it's a portion
 			"comment text," +				//	optional, for recognition
 			"expense integer not null"		//	boolean, if true then the amount has been expended and likely shared among others
+    	);
+    	tableDefs.put("Purposes", 
+			"entry integer not null," + 
+			"categoryId integer not null," + 
+			"foreign key(categoryId) references Categories(categoryId)"
+    	);
+    	tableDefs.put("Categories", 
+			"categoryId integer primary key," + 
+			"category text"
     	);
     }
 }

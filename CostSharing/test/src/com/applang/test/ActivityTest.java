@@ -35,8 +35,7 @@ public class ActivityTest extends ActivityInstrumentationTestCase2<CostSharingAc
     protected void setUp() throws Exception {
         super.setUp();
     	
-    	File dbDir = new File(Environment.getDataDirectory(), Helper.pathToDatabases());
-    	assertTrue(new File(dbDir, Helper.databaseName()).exists());
+//    	assertTrue(Helper.databaseFile().exists());
     }
 
     @Override

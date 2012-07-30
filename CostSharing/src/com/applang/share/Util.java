@@ -33,17 +33,20 @@ public class Util
 
 	public static Double parseDouble(Double defaultValue, String string) {
 		try {
-			return Double.valueOf(string);
+			Double d = Double.valueOf(string);
+			if (Double.isNaN(d))
+				return defaultValue;
+			else
+				return d;
 		} catch (NumberFormatException e) {
 			return defaultValue;
 		}
 	}
 
 	public static <T> boolean isAvailable(int i, T[] array) {
-		return array != null && 
-				i > -1 && 
-				i < array.length && 
-				array[i] != null;
+		return array != null && i > -1 && 
+			i < array.length && 
+			array[i] != null;
 	}
 
 	public static <T> boolean isNullOrEmpty(T[] array) {
@@ -75,6 +78,10 @@ public class Util
         }
     }
 
+    public static String textFromHtml(String html) {
+        return html.replaceAll("(?i)\\<br[/]?>", "\n").replaceAll("\\<.*?>", "");
+    }
+
     public static boolean embedsLeft(String whole, String part) {
 		return whole.contains(part) && !whole.startsWith(part);
 	}
@@ -87,7 +94,17 @@ public class Util
 		return embedsLeft(whole, part) && embedsRight(whole, part);
 	}
 
+	/**
+	 * no discussion about that amount of currency
+	 */
+	public static double minAmount = 0.01;
+
+	/**
+	 * accuracy of calculations
+	 */
 	public static double delta = 0.00001;
+	
+	public static String tableName = "KITTY";
 	
 	public static String placeholderIndicator = "_";
     
@@ -95,19 +112,11 @@ public class Util
 		return placeholderIndicator.concat(placeholderIndicator).concat(placeholderIndicator) + join(placeholderIndicator, nums);
     }
 	
-	public static String tableName = "KITTY";
-	
-	public static String policyOperators = ":*=";
-	
-	public static boolean maybePolicy(String policy) {
-		return embeds(policy, ":") || embeds(policy, "*") || embedsLeft(policy, "=");
-	}
-		
 	public static boolean isValidName(String name) {
 		if (notNullOrEmpty(name)) {
 			boolean noOps = true;
-			for (char op : policyOperators.toCharArray())
-				noOps &= !name.contains(String.valueOf(op));
+			for (String op : ShareMap.policyOperators)
+				noOps &= !name.contains(op);
 			
 			return noOps && 
 					!name.startsWith(placeholderIndicator) && 
@@ -117,4 +126,14 @@ public class Util
 			return false;
 	}
 
+	public static String[] otherNamesAfter(String first, String... names) {
+		ArrayList<String> list = new ArrayList<String>();
+		list.add(first);
+		for (String name : names) 
+			if (!first.equals(name))
+				list.add(name);
+			
+		return list.toArray(names);
+	}
+	
 }

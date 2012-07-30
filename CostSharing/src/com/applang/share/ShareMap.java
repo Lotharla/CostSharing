@@ -2,39 +2,78 @@ package com.applang.share;
 
 import java.util.*;
 
+import static com.applang.share.Util.*;
+
 /**
  * A <code>TreeMap</code> containing names as keys and shared amounts as values
  *
  */
-@SuppressWarnings("serial")
-public class ShareMap extends TreeMap<String, Double> 
+public class ShareMap implements java.io.Serializable
 {
-	public static class PolicyException extends Exception {
-		public int loc = -1;
-		public PolicyException(int loc) {
-			super(INVALID + "(" + loc + ")");
-			this.loc = loc;
+	private static final long serialVersionUID = -8319562705846900169L;
+
+	public TreeMap<String, Double> rawMap = new TreeMap<String, Double>();
+	
+	class SpenderComparator implements Comparator<String>
+	{
+		public SpenderComparator(String spender) {
+			this.spender = spender;
 		}
-		public PolicyException(String message) {
-			super(message);
+
+		String spender = null;
+		
+		public int compare(String s1, String s2) {
+			if (spender != null && spender.equals(s1))
+				return spender.equals(s2) ? 0 : -1;
+			else if (spender != null && spender.equals(s2))
+				return spender.equals(s1) ? 0 : 1;
+			else
+				return s1.compareTo(s2);
 		}
-		public static String INVALID = "invalid sharing policy";
+	};
+	
+	public TreeMap<String, Double> getMap() {
+		TreeMap<String, Double> map = new TreeMap<String, Double>(new SpenderComparator(getSpender()));
+		map.putAll(this.rawMap);
+		return map;
 	}
 	
-	public ShareMap(/*Object... params*/) {
-//		this.names = Util.param(null, 0, params);
-//		this.amount = Util.param(null, 1, params);
+	public TreeSet<String> getKeys() {
+		TreeSet<String> keys = new TreeSet<String>(new SpenderComparator(getSpender()));
+		keys.addAll(this.rawMap.keySet());
+		return keys;
+	}
+	
+	@Override
+	public String toString() {
+		return rawMap.toString();
+	}
+	
+	public ShareMap() {
 	}
 	
 	private String[] names = null;
 	private Double amount = null;
-	
+
 	/** @hide */ public String[] getNames() {
 		return names;
 	}
 
 	/** @hide */ public void setNames(String[] names) {
+		String spender = getSpender();
 		this.names = names;
+		if (spender != null)
+			setSpender(spender);
+	}
+
+	/** @hide */ public void checkNames(String[] names) throws PolicyException {
+		int size = -1;
+		try {
+			size = new TreeSet<String>(Arrays.asList(names)).size();
+		} catch (NullPointerException e) {
+		}
+		if (names.length != size)
+			throw new PolicyException(4);
 	}
 
 	/** @hide */ public Double getAmount() {
@@ -45,8 +84,168 @@ public class ShareMap extends TreeMap<String, Double>
 		this.amount = amount;
 	}
 	
+	private boolean spender = false;
+	
 	/** @hide */ public boolean hasSpender() {
-		return amount != null && Util.isAvailable(0, names);
+		return getAmount() != null && isAvailable(0, getNames()) && spender;
+	}
+	
+	/** @hide */ public String getSpender() {
+		return hasSpender() ? names[0] : null;
+	}
+	
+	/** @hide */ public void setSpender(String name) {
+		spender = Util.isValidName(name);
+		if (spender) 
+			names = otherNamesAfter(name, names);
+	}
+
+	public static class PolicyException extends Exception
+	{
+		public int loc = -1;
+		@Override
+		public String getMessage() {
+			switch (loc) {
+			case 1:
+				return POLICY + " : invalid factor detected";
+			case 2:
+				return POLICY + " : invalid name detected";
+			case 3:
+				return POLICY + " : at least one part is invalid";
+			case 4:
+				return "each name has to be unique and not null";
+			default:
+				return super.getMessage();
+			}
+		}
+		public PolicyException(int loc) {
+			super(INVALID + "(" + loc + ")");
+			this.loc = loc;
+		}
+		public PolicyException(String message) {
+			super(message);
+		}
+		public static String POLICY = "sharing policy";
+		public static String INVALID = "invalid " + POLICY;
+	}
+
+	public static String[] policyOperators = new String[] {":", "*", "=", "\n"};
+	
+	public static boolean isPolicy(String policy) {
+		return embeds(policy, policyOperators[0]) || 
+				embeds(policy, policyOperators[3]) || 
+				embeds(policy, policyOperators[1]) || 
+				isPolicyElaborate(policy);
+	}
+	
+	public static boolean isPolicyElaborate(String policy) {
+		return embedsLeft(policy, policyOperators[2]);
+	}
+
+	public static String makePolicy(boolean elaborate, String[] names, Number... values) {
+		int len = Math.max(
+			names == null ? 0 : names.length, 
+			values == null ? 0 : values.length);
+		String[] parts = new String[len];
+		
+		boolean noValues = values.length < 1, available;
+		for (int i = 0; i < len; i++) {
+			available = isAvailable(i, values);
+			parts[i] = noValues ? 
+				"1" : 
+				(available ? values[i] + "" : "0");
+			if (elaborate) {
+				available = isAvailable(i, names);
+				parts[i] = join(policyOperators[2], 
+					available ? names[i] : placeholder(1 + i), 
+					parts[i]);
+			}
+		}
+		
+		return join(elaborate ? policyOperators[3] : policyOperators[0], parts);
+	}
+
+	public static String translatePolicy(String policy, String... names) throws PolicyException {
+		List<String> _names = new ArrayList<String>();
+		List<Integer> _proportions = new ArrayList<Integer>();
+		List<Double> _portions = new ArrayList<Double>();
+		
+		int len = parsePolicy(policy, "", _names, _proportions, _portions);
+		if (len < 1)
+			return "";
+		else {
+			Number[] values = new Number[len];
+			
+			for (int i = 0; i < len; i++) {
+				values[i] = _proportions.get(i);
+				if (values[i] == null)
+					values[i] = _portions.get(i);
+				if (isAvailable(i, names)) {
+					_names.remove(i);
+					_names.add(i, names[i]);
+				}
+			}
+			
+			return makePolicy(true, _names.toArray(new String[0]), values);
+		}
+	}
+
+	public static int parsePolicy(String policy, String options, Object... params) throws PolicyException {
+		List<String> names = param(new ArrayList<String>(), 0, params);
+
+		String[] parts = new String[0];
+		
+		if (notNullOrEmpty(policy.trim())) {
+			List<String> list = new ArrayList<String>();
+			list.addAll(Arrays.asList(policy.split(policyOperators[0] + "|\\n", -1)));		//	regex pattern requires \\n
+			for (int i = list.size() - 1; i > -1; i--) {
+				String part = list.get(i).trim();
+				if (part.contains(policyOperators[1])) {
+					String[] facts = part.split("\\" + policyOperators[1], 2);
+					Integer factor = parseInt(0, facts[1]);
+					if (factor == null || factor < 1) 
+						throw new PolicyException(1);
+					else {
+						list.remove(i);
+						for (int j = factor; j > 0; j--) {
+							list.add(i, facts[0]);
+							names.add(0, placeholder(1 + i, j));
+						}
+					}
+				}
+				else
+					names.add(0, placeholder(1 + i));
+			}
+			parts = list.toArray(parts);
+		}
+		else {
+			parts = new String[] {"1"};
+			names.add(placeholder());
+		}
+
+		List<Integer> proportions = param(new ArrayList<Integer>(), 1, params);
+		List<Double> portions = param(new ArrayList<Double>(), 2, params);
+		
+		boolean elaborate = isPolicyElaborate(policy);
+		if (elaborate)
+			names.clear();
+		
+		for (int i = 0; i < parts.length; i++) {
+			String[] sides = parts[i].split("=", 2);
+			if (elaborate) {
+				if (sides.length < 2 || options.contains("2") && !isValidName(sides[0]))
+					throw new PolicyException(2);
+				
+				String name = sides[0].trim();
+				names.add(i, name);
+			}
+			
+			String part = sides[sides.length - 1];
+			proportions.add(i, parseInt(null, part));
+			portions.add(i, parseDouble(null, part));
+		}
+		
+		return parts.length;
 	}
 
     /**
@@ -58,125 +257,75 @@ public class ShareMap extends TreeMap<String, Double>
 	 * @param policy	a <code>String</code> defining proportions for the sharers according to the order of the names
      */
     public ShareMap(String[] names, double amount, String policy) {
-    	this.names = names;
+    	setNames(names);
     	
-		if (!Util.isNullOrEmpty(names) && 
-				(!Util.notNullOrEmpty(policy) || policy.trim().length() < 1)) {
-			String[] parts = new String[names.length];
-			for (int i = 0; i < parts.length; i++)
-				parts[i] = "1";
-			policy = Util.join(":", parts);
+		if (!isNullOrEmpty(names) && 
+				(!notNullOrEmpty(policy) || policy.trim().length() < 1)) {
+			policy = makePolicy(false, names);
 		}
 
 		try {
 			updateWith(amount, policy);
 		} catch (PolicyException e) {
-	    	this.clear();
-			return;
+			rawMap.clear();
 		}
     }
     
     /** @hide */ public void updateWith(double amount, String policy) throws PolicyException {
-    	this.clear();
+    	rawMap.clear();
 		
-		this.amount = amount;
+    	setAmount(amount);
     	
-		String[] parts = new String[0];
 		List<String> names = new ArrayList<String>();
-		if (Util.notNullOrEmpty(policy.trim())) {
-			List<String> list = new ArrayList<String>();
-			list.addAll(Arrays.asList(policy.split(":|\\n", -1)));
-			for (int i = list.size() - 1; i > -1; i--) {
-				String part = list.get(i).trim();
-				if (part.contains("*")) {
-					String[] facts = part.split("\\*", 2);
-					Integer factor = Util.parseInt(0, facts[1]);
-					if (factor == null || factor < 1) 
-						throw new PolicyException(1);
-					else {
-						list.remove(i);
-						for (int j = factor; j > 0; j--) {
-							list.add(i, facts[0]);
-							names.add(0, Util.placeholder(1 + i, j));
-						}
-					}
-				}
-				else
-					names.add(0, Util.placeholder(1 + i));
-			}
-			parts = list.toArray(parts);
-		}
-		else {
-			parts = new String[] {"1"};
-			names.add(Util.placeholder());
-		}
-
-		Integer[] proportions = new Integer[parts.length];
+		List<Integer> proportions = new ArrayList<Integer>();
+		List<Double> portions = new ArrayList<Double>();
 		
-		boolean paired = policy.contains("=");
-		if (paired)
-			names.clear();
+		int len = parsePolicy(policy, "2", names, proportions, portions);
 		
-		for (int i = 0; i < parts.length; i++) {
-			String[] sides = parts[i].split("=", 2);
-			String part = sides[sides.length - 1];
-			String name;
-			if (paired) {
-				if (sides.length < 2 || !Util.isValidName(sides[0]))
-					throw new PolicyException(4);
-				
-				name = sides[0].trim();
-				names.add(i, name);
-			}
-			else
-				name = names.get(i);
-			
-			proportions[i] = Util.parseInt(null, part);
-			
-			if (proportions[i] == null) {
-				Double value = Util.parseDouble(null, part);
-				if (value != null) 
-					put(name, value);
+		for (int i = 0; i < len; i++) {
+			if (proportions.get(i) == null) {
+				Double portion = portions.get(i);
+				if (portion != null) 
+					rawMap.put(names.get(i), -portion);
 				else 
-					throw new PolicyException(2);
+					throw new PolicyException(3);
 			}
 		}
 		
-		if (!Arrays.asList(proportions).contains(null)) {
-			Double[] distributed = distribute(-this.amount, proportions);
-			for (int i = 0; i < distributed.length; i++)
-				put(names.get(i), distributed[i]);
-		}
-		else
-			for (Integer integer : proportions) 
-				if (integer != null)
-					throw new PolicyException(3);
+		for (Double portion : rawMap.values()) 
+			amount += portion;
 		
-		if (paired)
-			this.names = names.toArray(new String[0]);
+		Double[] distributed = distribute(-amount, proportions.toArray(new Integer[0]));
+		for (int i = 0; i < distributed.length; i++)
+			if (distributed[i] != null)
+				rawMap.put(names.get(i), distributed[i]);
+		
+		boolean elaborate = isPolicyElaborate(policy);
+		if (elaborate) 
+	    	setNames(names.toArray(new String[0]));
 		else
-			renameWith(this.names);
+			renameWith(getNames());
     }
     
     /** @hide */ public void renameWith(String... names) {
-    	if (Util.isNullOrEmpty(names))
+    	if (isNullOrEmpty(names))
     		return;
     	
-    	String[] keys = this.keySet().toArray(new String[0]);
-    	Double[] values = this.values().toArray(new Double[0]);
-    	this.clear();
+    	String[] keys = rawMap.keySet().toArray(new String[0]);
+    	Double[] values = rawMap.values().toArray(new Double[0]);
+    	rawMap.clear();
     	
 		for (int i = 0; i < keys.length; i++) 
-			if (Util.isAvailable(i, names))
-				put(names[i], values[i]);
+			if (isAvailable(i, names))
+				rawMap.put(names[i], values[i]);
 			else
-				put(keys[i], values[i]);
+				rawMap.put(keys[i], values[i]);
 		
 		if (names.length > keys.length)
 			for (int i = keys.length; i < names.length; i++) 
-				put(names[i], 0.);
+				rawMap.put(names[i], 0.);
 		
-		this.names = names;
+    	setNames(names);
     }
 	/**
 	 * creates a sorted map of deals for a number of participants.
@@ -186,12 +335,12 @@ public class ShareMap extends TreeMap<String, Double>
 	 * @param portions	given deals, if any, for individual participants according to the order of the names
 	 */
 	public ShareMap(String[] names, Double[] portions) {
-    	this.names = names;
+    	setNames(names);
     	
     	int n = Math.min(names.length, portions.length);
     	for (int i = 0; i < n; i++) {
-    		if (Util.isAvailable(i, portions))
-	        	put(names[i], portions[i]);
+    		if (isAvailable(i, portions))
+    			rawMap.put(names[i], portions[i]);
     	}
 	}
 	/**
@@ -205,33 +354,34 @@ public class ShareMap extends TreeMap<String, Double>
 	 * @param portions	given portions, if any, for individual sharers according to the order of the names
 	 */
     public ShareMap(String[] names, double amount, Double... portions) {
-    	this.names = names;
+    	setNames(names);
 
     	updateWith(amount, portions);
     }
     
     /** @hide */ public void updateWith(double amount, Double[] portions) {
-    	this.clear();
+    	rawMap.clear();
 		
-		this.amount = amount;
+    	setAmount(amount);
     	
-    	int n = this.names == null ? 0 : this.names.length;
+    	String[] names = getNames();
+    	int n = names == null ? 0 : names.length;
     	if (n > 0) {
     		double portion = amount / n;
     		
 			for (int i = 1; i < n; i++) {
-				String name = this.names[i];
+				String name = names[i];
 				
-				if (Util.isAvailable(i, portions))
-					put(name, -portions[i]);
+				if (isAvailable(i, portions))
+					rawMap.put(name, -portions[i]);
 				else if (i >= portions.length)
-					put(name, -portion);
+					rawMap.put(name, -portion);
 				
-				if (containsKey(name))
-					amount += get(name);
+				if (rawMap.containsKey(name))
+					amount += rawMap.get(name);
 			}
 			
-			put(this.names[0], -amount);
+			rawMap.put(names[0], -amount);
 		}
 	}
     /**
@@ -239,8 +389,8 @@ public class ShareMap extends TreeMap<String, Double>
      * @return	the amount of the sharer 's portion, if null, a portion for the sharer in question doesn't exist.
      */
     public Double getPortion(String name) {
-    	if (containsKey(name)) 
-    		return -get(name);
+    	if (rawMap.containsKey(name)) 
+    		return -rawMap.get(name);
     	else
     		return null;
     }
@@ -250,7 +400,7 @@ public class ShareMap extends TreeMap<String, Double>
      */
     public double sum() {
     	double sum = 0;
-    	for (double value : values()) 
+    	for (double value : rawMap.values()) 
 			sum += value;
     	return sum;
     }
@@ -259,8 +409,8 @@ public class ShareMap extends TreeMap<String, Double>
      * @return	the negated map
      */
     public ShareMap negated() {
-		for (Map.Entry<String, Double> share : entrySet())
-			put(share.getKey(), -share.getValue());
+		for (Map.Entry<String, Double> share : rawMap.entrySet())
+			rawMap.put(share.getKey(), -share.getValue());
     	return this;
     }
     /**
@@ -269,13 +419,13 @@ public class ShareMap extends TreeMap<String, Double>
      */
     public void minus(Collection<Double> vector) {
     	Double[] subtrahend = vector.toArray(new Double[0]);
-    	int n = Math.min(size(), subtrahend.length);
+    	int n = Math.min(rawMap.size(), subtrahend.length);
     	if (n > 0) {
-    		Set<String> keys = keySet();
+    		Set<String> keys = rawMap.keySet();
     		Iterator<String> it = keys.iterator();
 			for (int i = 0; i < n; i++) {
 				String name = it.next();
-				put(name, get(name) - subtrahend[i]);
+				rawMap.put(name, rawMap.get(name) - subtrahend[i]);
 			}
     	}
     }
@@ -283,7 +433,7 @@ public class ShareMap extends TreeMap<String, Double>
      * @return	true if the sum of the shares and the amount is zero
      */
     public boolean isComplete() {
-    	return this.amount != null && Math.abs(this.amount + sum()) < Util.delta;
+    	return getAmount() != null && Math.abs(getAmount() + sum()) < delta;
     }
     
     /**
@@ -294,17 +444,18 @@ public class ShareMap extends TreeMap<String, Double>
      */
     public Double[] distribute(double amount, Integer[] proportions) {
     	int n = proportions.length;
-    	Double[] normalized = new Double[n];
+    	Double[] distributed = new Double[n];
     	
     	double denominator = 0;
 		for (int i = 0; i < n; i++)
-			denominator += Math.abs(proportions[i]);
+			denominator += proportions[i] == null ? 0 : Math.abs(proportions[i]);
 		
 		if (denominator > 0) {
 			for (int i = 0; i < n; i++) 
-				normalized[i] = amount * Math.abs(proportions[i]) / denominator;
+				distributed[i] = proportions[i] == null ? null : 
+					amount * Math.abs(proportions[i]) / denominator;
 		}
 
-		return normalized;
+		return distributed;
     }
 }
