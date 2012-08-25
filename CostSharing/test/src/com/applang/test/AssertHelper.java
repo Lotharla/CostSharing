@@ -9,10 +9,34 @@ import com.applang.share.*;
 public class AssertHelper
 {
    
-    public static <T> void assertArrayEquals(T[] expected, T[] actual) {
-    	assertEquals(expected.length, actual.length);
-    	for (int i = 0; i < actual.length; i++) 
-        	assertEquals(expected[i], actual[i]);
+    public static <T> void assert_ArrayEquals(T[] expected, T[] actual) {
+    	assert_ArrayEquals("", expected, actual);
+    }
+    
+    public static <T> void assert_ArrayEquals(String message, T[] expected, T[] actual) {
+    	assertEquals(message, expected.length, actual.length);
+    	for (int i = 0; i < expected.length; i++) 
+        	assertEquals(message, expected[i], actual[i]);
+    }
+    
+    public static <T> void assert_ArrayEquals(String message, Object[] expected, Object[] actual, double delta) {
+    	assertEquals(message, expected.length, actual.length);
+    	for (int i = 0; i < expected.length; i++) 
+        	assertEquals(message, (Double) expected[i], (Double) actual[i], delta);
+    }
+    
+    public static void assertMapEquals(Map<String, Double> actual, Object... expected) {
+    	assertMapEquals("", actual, expected);
+    }
+    
+    public static void assertMapEquals(String message, Map<String, Double> actual, Object... expected) {
+    	assertEquals(message, expected.length, 2 * actual.size());
+		Iterator<Map.Entry<String, Double>> it = actual.entrySet().iterator();
+    	for (int i = 0; i < expected.length; i+=2) {
+    		Map.Entry<String, Double> entry = it.next();
+    		assertEquals(message, expected[i].toString(), entry.getKey());
+    		assertEquals(message, (Double) expected[i + 1], entry.getValue(), Util.minAmount);
+    	}
     }
     
     public static void assertAmountZero(String message, Double actual) {
@@ -31,6 +55,10 @@ public class AssertHelper
     }
     
     public static void assertShareMap(ShareMap actual, Object... expected) {
+    	assertShareMap("", actual, expected);
+    }
+    
+    public static void assertShareMap(String message, ShareMap actual, Object... expected) {
 //    	System.out.println(actual.toString()); 			/* ascending order of keys by default */
     	
     	int len = expected.length;
@@ -39,24 +67,14 @@ public class AssertHelper
     	if (len < 1) 
     		return;
     	
-    	if (mapEntry) {
-	    	Iterator<Map.Entry<String, Double>> it = actual.getMap().entrySet().iterator();
-	    	for (int i = 0; i < len; i+=2) {
-	    		Map.Entry<String, Double> entry = it.next();
-	    		assertEquals(expected[i].toString(), entry.getKey());
-	    		assertEquals((Double)expected[i + 1], entry.getValue(), Util.minAmount);
-	    	}
-    	}
-    	else if (expected[0] instanceof Double) {
-	    	Iterator<Double> it = actual.getMap().values().iterator();
-	    	for (int i = 0; i < len; i++) 
-	    		assertEquals((Double)expected[i], it.next(), Util.minAmount);
-    	}
-    	else if (expected[0] instanceof String) {
-	    	Iterator<String> it = actual.getMap().keySet().iterator();
-	    	for (int i = 0; i < len; i++) 
-	    		assertEquals(expected[i].toString(), it.next());
-    	}
+    	TreeMap<String, Double> map = actual.getSpenderMap();
+    	
+    	if (mapEntry) 
+    		assertMapEquals(message, map, expected);
+    	else if (expected[0] instanceof Double) 
+    		assert_ArrayEquals(message, expected, map.values().toArray(), Util.minAmount);
+    	else if (expected[0] instanceof String) 
+    		assert_ArrayEquals(message, expected, map.keySet().toArray());
     	else
     		throw new IllegalArgumentException();
     	

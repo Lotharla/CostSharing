@@ -1,8 +1,11 @@
 package com.applang.db;
 
+import java.lang.reflect.*;
 import java.io.*;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.logging.*;
 
 import com.applang.share.*;
@@ -55,11 +58,7 @@ public class Helper
 		System.setProperty("data.dir", dir);
 	}
 
-	public static interface Job {
-		public void dispatch(Object[] params) throws Exception;
-	}
-	
-	public static <T> String captureOutput(Job job, Object... params) throws Exception {
+	public static <T> String captureOutput(Util.Job job, Object... params) throws Exception {
 		PrintStream out = System.out;
 		ByteArrayOutputStream myOut = new ByteArrayOutputStream();
 		System.setOut(new PrintStream(myOut));
@@ -100,4 +99,24 @@ public class Helper
 			new ErrorManager().error("logFileHandling", ex, ErrorManager.GENERIC_FAILURE);
 		}
     }
+	
+	public static Set<String> getTestsJUnit3(String testClassName) {
+		Set<String> tests = new HashSet<String>();
+		
+		try {
+			Class<?> type = Class.forName(testClassName);
+			for (Method m : type.getDeclaredMethods()) {
+				String testName = m.getName();
+				if (testName.startsWith("test"))
+					tests.add(testName);
+			}
+			for (Method m : type.getSuperclass().getDeclaredMethods()) {
+				String testName = m.getName();
+				if (testName.startsWith("test"))
+					tests.add(testName);
+			}
+		} catch (Exception e) {}
+		
+		return tests;
+	}
 }

@@ -10,6 +10,8 @@ import android.util.Log;
 
 import com.applang.share.*;
 
+import static com.applang.share.Util.*;
+
 /**
  *	A class containing transactions and evaluation tools for a cost sharing system
  * 
@@ -32,9 +34,11 @@ public class Transactor extends DbAdapter implements java.io.Serializable
     
 	private static final String TAG = Transactor.class.getSimpleName();
 	
-	private boolean hasNegativeTotalWith(double amount) {
+	private double debtLimit = minAmount;
+	
+	private boolean breaksDebtLimit(double amount) {
     	double total = total();
-		if (total - amount < -Util.minAmount) {
+		if (total - amount < -debtLimit) {
 			Log.w(TAG, String.format("retrieval of %f is more than allowed : %f", amount, total));
 			return true;
 		}
@@ -42,8 +46,20 @@ public class Transactor extends DbAdapter implements java.io.Serializable
 			return false;
     }
     
-    private boolean isInternal(String name) {
-    	return name.length() < 1;
+    /** @hide */ public double getDebtLimit() {
+		return debtLimit;
+	}
+
+    /** @hide */ public void setDebtLimit(double debtLimit) {
+		this.debtLimit = debtLimit;
+	}
+
+	private boolean isInternal(String name) {
+    	return isKitty.apply(name);
+    }
+    
+    private String notInternalClause() {
+    	return "name != " + enclose("'", kitty);
     }
 	/**
 	 * The transaction registers the negated sum of the shares with the submitter.
@@ -61,7 +77,7 @@ public class Transactor extends DbAdapter implements java.io.Serializable
 		
 		boolean internal = isInternal(submitter);
 		if (internal) {
-			if (hasNegativeTotalWith(-amount)) 
+			if (breaksDebtLimit(-amount)) 
 				return -2;
 		}
 		
@@ -95,22 +111,30 @@ public class Transactor extends DbAdapter implements java.io.Serializable
     	int entryId = -1;
     	
     	double amount = deals.sum();
-    	if (Math.abs(amount + shares.sum()) < Util.delta)
-	    	for (Map.Entry<String, Double> deal : deals.rawMap.entrySet()) {
-				String name = deal.getKey();
-				
-				if (isInternal(name)) 
-					entryId = performTransfer(name, -deal.getValue(), comment, name);
-				else {
-					long rowId = addRecord(entryId < 0 ? getNewEntryId() : entryId, 
-							name, deal.getValue(), currency, Helper.timestampNow(), comment, true);
-					if (rowId < 0)
-			    		entryId = -1;
+    	if (Math.abs(amount + shares.sum()) < delta) {
+    		if (deals.option != null)
+    			switch (deals.option) {
+				default:
+					setDebtLimit(1000. * deals.option);
+					break;
 				}
-				
-		    	if (entryId < 0)
+    		
+    		if (deals.rawMap.containsKey(kitty))
+				entryId = performTransfer(kitty, -deals.rawMap.get(kitty), comment, kitty);
+    		else
+				entryId = getNewEntryId();
+    		
+    		Collection<String> dealers = filter(deals.rawMap.keySet(), true, isKitty);
+    		
+	    	for (String name : dealers) {
+				long rowId = addRecord(entryId, 
+						name, deals.rawMap.get(name), currency, Helper.timestampNow(), comment, true);
+				if (rowId < 0) {
+		    		entryId = -1;
 		    		break;
+				}
 			}
+    	}
     	else
     		Log.w(TAG, String.format("the sum of the deals (%f) for '%s' doesn't match the sum of the shares (%f)", 
     				amount, comment, shares.sum()));
@@ -143,7 +167,7 @@ public class Transactor extends DbAdapter implements java.io.Serializable
 	public int performTransfer(String sender, double amount, String comment, String recipient) {
 		boolean internal = isInternal(sender);
 		if (internal) {
-			if (hasNegativeTotalWith(amount)) 
+			if (breaksDebtLimit(amount)) 
 				return -2;
 		}
 		
@@ -159,9 +183,9 @@ public class Transactor extends DbAdapter implements java.io.Serializable
 		}
 
 		Log.i(TAG, String.format("entry %d: %s transfer %f %s for '%s' to %s", entryId, 
-				internal ? "internal" : sender, 
+				sender, 
 				amount, currency, comment, 
-				isInternal(recipient) ? "internal" : recipient));
+				recipient));
 		
 		return entryId;
 	}
@@ -177,7 +201,7 @@ public class Transactor extends DbAdapter implements java.io.Serializable
 		int entryId = addEntry(submitter, amount, currency, comment, false);
 		
 		if (entryId > -1) {
-			if (hasNegativeTotalWith(-amount)) {
+			if (breaksDebtLimit(-amount)) {
 	    		removeEntry(entryId);
 				return -2;
 			}
@@ -192,25 +216,25 @@ public class Transactor extends DbAdapter implements java.io.Serializable
 	/**
 	 * The transaction registers multiple submissions.
 	 * This transaction as a whole is not allowed if it causes a negative total.
-	 * @param shares	a <code>ShareMap</code> containing the shares of participants involved
+	 * @param deals	a <code>ShareMap</code> containing the deals of participants involved
 	 * @param comment	a <code>String</code> to make the transactions recognizable
 	 * @return	the entry id of the transaction or -1 in case the transaction failed or -2 if the transactions in the sum violate the 'no negative total' rule
 	 */
-	public int performMultiple(ShareMap shares, String comment) {
-		if (hasNegativeTotalWith(-shares.sum())) 
+	public int performMultiple(ShareMap deals, String comment) {
+		if (breaksDebtLimit(-deals.sum())) 
 			return -2;
 		
     	int entryId = getNewEntryId();
     	
 		if (entryId > -1) {
-			for (Map.Entry<String, Double> share : shares.rawMap.entrySet())
+			for (Map.Entry<String, Double> share : deals.rawMap.entrySet())
 				if (addRecord(entryId, share.getKey(), share.getValue(), currency, Helper.timestampNow(), comment, false) < 0) {
 		    		removeEntry(entryId);
 					return -1;
 				}
 			
 			Log.i(TAG, String.format("entry %d: '%s' submissions : %s",
-					entryId, comment, shares.toString()));
+					entryId, comment, deals.toString()));
 		}
 		
 		return entryId;
@@ -231,7 +255,7 @@ public class Transactor extends DbAdapter implements java.io.Serializable
      */
     public ShareMap cashFlow() {
 		return rawQuery("select name, sum(amount) as balance from " + table1 + 
-				" where length(name) > 0 and timestamp not null group by name order by name", null, 
+				" where " + notInternalClause() + " and timestamp not null group by name order by name", null, 
 			new QueryEvaluator<ShareMap>() {
 				public ShareMap evaluate(Cursor cursor, ShareMap defaultResult, Object... params) {
 					ShareMap sm = new ShareMap();
@@ -251,7 +275,7 @@ public class Transactor extends DbAdapter implements java.io.Serializable
      */
     public ShareMap balances() {
 		return rawQuery("select name, sum(amount) as balance from " + table1 + 
-				" where length(name) > 0 group by name order by name", null, 
+				" where " + notInternalClause() + " group by name order by name", null, 
 			new QueryEvaluator<ShareMap>() {
 				public ShareMap evaluate(Cursor cursor, ShareMap defaultResult, Object... params) {
 					ShareMap sm = new ShareMap();
@@ -280,15 +304,15 @@ public class Transactor extends DbAdapter implements java.io.Serializable
     	return getSum("expense > 0 and timestamp not null");
     }
 
-	private String sharingPolicy = "";    //	uniform sharing among all participants
+	private static String sharingPolicy = "";    //	uniform sharing among all participants
 	/**
 	 * A sharing policy depicts the way the volume of all the cash flows is to be shared among the participants 
 	 * when it comes to calculating compensations (x:y:z ...). The given integers are proportional weights for those participants 
 	 * who are involved in the compensation procedure. They are assigned according to the sorted list of names.
 	 * @return	an array containing integer values or empty meaning the default sharing policy (uniform sharing among all participants)
 	 */
-	public String getSharingPolicy() {
-		return sharingPolicy;
+	public static String getSharingPolicy() {
+		return Transactor.sharingPolicy;
 	}
 	/**
 	 * sets the sharing policy.
@@ -296,8 +320,8 @@ public class Transactor extends DbAdapter implements java.io.Serializable
 	 * resets the sharing policy to its default (uniform sharing among all participants).
 	 * @param sharingPolicy
 	 */
-	public void setSharingPolicy(String sharingPolicy) {
-		this.sharingPolicy = sharingPolicy;
+	public static void setSharingPolicy(String sharingPolicy) {
+		Transactor.sharingPolicy = sharingPolicy;
 	}
 	/**
 	 * calculates a compensation for each participant from the balance and the all-over cash flow at this point.
@@ -307,7 +331,7 @@ public class Transactor extends DbAdapter implements java.io.Serializable
 	 * The first portion is 1/6, the second 2/6 and the third is 3/6 of the volume.
 	 * @return	a sorted map containing the names as keys and the compensations as values
 	 */
-	public ShareMap compensations() {
+	public ShareMap compensations(String sharingPolicy) {
     	String[] sortedNames = sortedNames();
     	ShareMap cashFlow = cashFlow();
     	double volume = cashFlow.sum() - total();
@@ -324,7 +348,7 @@ public class Transactor extends DbAdapter implements java.io.Serializable
      * @return	a sorted array of all names of the participants
      */
     public String[] sortedNames() {
-		return rawQuery("select distinct name from " + table1 + " where length(name) > 0", null, 
+		return rawQuery("select distinct name from " + table1 + " where " + notInternalClause(), null, 
 			new QueryEvaluator<String[]>() {
 				public String[] evaluate(Cursor cursor, String[] defaultResult, Object... params) {
 			    	TreeSet<String> names = new TreeSet<String>();
@@ -356,7 +380,7 @@ public class Transactor extends DbAdapter implements java.io.Serializable
      */
     public Integer[] getEntryIds(String clause) {
 		return rawQuery("select entry from " + table1 + 
-				(Util.notNullOrEmpty(clause) ? " where " + clause : ""), null, 
+				(notNullOrEmpty(clause) ? " where " + clause : ""), null, 
 			new QueryEvaluator<Integer[]>() {
 				public Integer[] evaluate(Cursor cursor, Integer[] defaultResult, Object... params) {
 			    	TreeSet<Integer> ids = new TreeSet<Integer>();
@@ -373,7 +397,7 @@ public class Transactor extends DbAdapter implements java.io.Serializable
      */
     public String[] getEntryStrings(String clause, final String tableName) {
 		return rawQuery("select distinct entry from " + tableName + 
-				(Util.notNullOrEmpty(clause) ? " where " + clause : ""), null, 
+				(notNullOrEmpty(clause) ? " where " + clause : ""), null, 
 			new QueryEvaluator<String[]>() {
 				public String[] evaluate(Cursor cursor, String[] defaultResult, Object... params) {
 			    	ArrayList<String> strings = new ArrayList<String>();
@@ -396,8 +420,10 @@ public class Transactor extends DbAdapter implements java.io.Serializable
 			    	if (cursor.moveToFirst()) {
 			    		s += String.format("Entry %d on %s comment '%s'", cursor.getInt(0), cursor.getString(4), cursor.getString(5));
 			    		do {
-			    			String name = isInternal(cursor.getString(1)) ? table1 : cursor.getString(1);
-			    			s += String.format(" : %s=%s", name, Helper.formatAmount(cursor.getDouble(2)));
+			    			String assoc = ShareMap.association(
+			    					cursor.getString(1), 
+			    					Helper.formatAmount(cursor.getDouble(2)));
+			    			s += " : " + assoc;
 			       		} while (cursor.moveToNext());
 			    	}
 					return s;
@@ -410,7 +436,7 @@ public class Transactor extends DbAdapter implements java.io.Serializable
      */
     public Long[] getRowIds(String clause) {
 		return rawQuery("select rowid from " + table1 + 
-				(Util.notNullOrEmpty(clause) ? " where " + clause : ""), null, 
+				(notNullOrEmpty(clause) ? " where " + clause : ""), null, 
 			new QueryEvaluator<Long[]>() {
 				public Long[] evaluate(Cursor cursor, Long[] defaultResult, Object... params) {
 			    	TreeSet<Long> ids = new TreeSet<Long>();
@@ -427,7 +453,7 @@ public class Transactor extends DbAdapter implements java.io.Serializable
      */
     public double getSum(String clause) {
 		return rawQuery("select sum(amount) from " + table1 + 
-				(Util.notNullOrEmpty(clause) ? " where " + clause : ""), null, 
+				(notNullOrEmpty(clause) ? " where " + clause : ""), null, 
 			new QueryEvaluator<Double>() {
 				public Double evaluate(Cursor cursor, Double defaultResult, Object... params) {
 					if (cursor.moveToFirst()) 
@@ -443,7 +469,7 @@ public class Transactor extends DbAdapter implements java.io.Serializable
      */
     public int getCount(String clause) {
 		return rawQuery("select count(*) from " + table1 + 
-				(Util.notNullOrEmpty(clause) ? " where " + clause : ""), null, 
+				(notNullOrEmpty(clause) ? " where " + clause : ""), null, 
 			new QueryEvaluator<Integer>() {
 				public Integer evaluate(Cursor cursor, Integer defaultResult, Object... params) {
 					if (cursor.moveToFirst()) 
@@ -733,7 +759,7 @@ public class Transactor extends DbAdapter implements java.io.Serializable
     }
 
     static {
-    	tableDefs.put(Util.tableName, 
+    	tableDefs.put(kitty, 
 			"entry integer not null," +		//	unique for the entries, reference for the portions
 			"name text not null," +			//	the person involved
 			"amount real not null," +		//	the amount of money, negative for portions

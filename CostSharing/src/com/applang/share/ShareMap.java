@@ -12,41 +12,37 @@ public class ShareMap implements java.io.Serializable
 {
 	private static final long serialVersionUID = -8319562705846900169L;
 
-	public TreeMap<String, Double> rawMap = new TreeMap<String, Double>();
-	
-	class SpenderComparator implements Comparator<String>
-	{
-		public SpenderComparator(String spender) {
-			this.spender = spender;
-		}
-
-		String spender = null;
-		
-		public int compare(String s1, String s2) {
-			if (spender != null && spender.equals(s1))
-				return spender.equals(s2) ? 0 : -1;
-			else if (spender != null && spender.equals(s2))
-				return spender.equals(s1) ? 0 : 1;
-			else
-				return s1.compareTo(s2);
-		}
-	};
-	
-	public TreeMap<String, Double> getMap() {
-		TreeMap<String, Double> map = new TreeMap<String, Double>(new SpenderComparator(getSpender()));
-		map.putAll(this.rawMap);
-		return map;
-	}
-	
-	public TreeSet<String> getKeys() {
-		TreeSet<String> keys = new TreeSet<String>(new SpenderComparator(getSpender()));
-		keys.addAll(this.rawMap.keySet());
-		return keys;
-	}
+	public Map<String, Double> rawMap = new TreeMap<String, Double>();
 	
 	@Override
 	public String toString() {
 		return rawMap.toString();
+	}
+	
+	public Object[] toArray(Object... params) {
+		int len = param(2, 0, params);
+		
+		Object[] array = new Object[len * rawMap.size()];
+		
+		int i = 0;
+		for (Map.Entry<String, Double> share : rawMap.entrySet()) {
+			if (len > 0)
+				array[i] = share.getKey();
+			if (len > 1)
+				array[i + 1] = share.getValue();
+			
+			i += len;
+		}
+		
+		return array;
+	}
+
+	public static ShareMap fromArray(Object... params) {
+		ShareMap sm = new ShareMap();
+		sm.rawMap = new LinkedHashMap<String, Double>();
+		for (int i = 0; i < params.length; i+=2) 
+			sm.rawMap.put(params[i].toString(), (Double)params[i + 1]);
+		return sm;
 	}
 	
 	public ShareMap() {
@@ -64,16 +60,6 @@ public class ShareMap implements java.io.Serializable
 		this.names = names;
 		if (spender != null)
 			setSpender(spender);
-	}
-
-	/** @hide */ public void checkNames(String[] names) throws PolicyException {
-		int size = -1;
-		try {
-			size = new TreeSet<String>(Arrays.asList(names)).size();
-		} catch (NullPointerException e) {
-		}
-		if (names.length != size)
-			throw new PolicyException(4);
 	}
 
 	/** @hide */ public Double getAmount() {
@@ -95,10 +81,53 @@ public class ShareMap implements java.io.Serializable
 	}
 	
 	/** @hide */ public void setSpender(String name) {
-		spender = Util.isValidName(name);
+		spender = isValidName(name);
 		if (spender) 
-			names = otherNamesAfter(name, names);
+			names = makeList(name, names).toArray(new String[0]);
 	}
+	
+	class SpenderComparator implements Comparator<String>
+	{
+		public SpenderComparator(String spender) {
+			this.spender = spender;
+		}
+
+		String spender = null;
+		
+		public int compare(String s1, String s2) {
+			if (spender != null && spender.equals(s1))
+				return spender.equals(s2) ? 0 : -1;
+			else if (spender != null && spender.equals(s2))
+				return spender.equals(s1) ? 0 : 1;
+			else
+				return s1.compareTo(s2);
+		}
+	};
+	
+	/** @hide */ public TreeMap<String, Double> getSpenderMap() {
+		TreeMap<String, Double> map = new TreeMap<String, Double>(new SpenderComparator(getSpender()));
+		map.putAll(this.rawMap);
+		return map;
+	}
+	
+	/** @hide */ public TreeSet<String> getSpenderKeys() {
+		TreeSet<String> keys = new TreeSet<String>(new SpenderComparator(getSpender()));
+		keys.addAll(this.rawMap.keySet());
+		return keys;
+	}
+
+	/** @hide */ public static void checkNames(boolean validate, String... names) throws PolicyException {
+		List<String> list = Arrays.asList(names);
+		for (String name : list) 
+			if (validate && !isValidName(name))
+				throw new PolicyException(5);
+		if (!areMembersDistinct(list))
+			throw new PolicyException(4);
+		else if (list.contains(kitty))
+			throw new PolicyException(6);
+	}
+	
+	/** @hide */ public Integer option = null;
 
 	public static class PolicyException extends Exception
 	{
@@ -113,7 +142,11 @@ public class ShareMap implements java.io.Serializable
 			case 3:
 				return POLICY + " : at least one part is invalid";
 			case 4:
-				return "each name has to be unique and not null";
+				return "each name has to be distinct and not null";
+			case 5:
+				return "invalid names are not allowed";
+			case 6:
+				return enclose("'", kitty) + " not allowed here as a name";
 			default:
 				return super.getMessage();
 			}
@@ -135,11 +168,19 @@ public class ShareMap implements java.io.Serializable
 		return embeds(policy, policyOperators[0]) || 
 				embeds(policy, policyOperators[3]) || 
 				embeds(policy, policyOperators[1]) || 
-				isPolicyElaborate(policy);
+				isElaborate(policy);
 	}
 	
-	public static boolean isPolicyElaborate(String policy) {
+	public static boolean isElaborate(String policy) {
 		return embedsLeft(policy, policyOperators[2]);
+	}
+	
+	public static String association(String name, String value) {
+		return join(policyOperators[2], name, value);
+	}
+	
+	public static String[] dissociation(String value) {
+		return value.split(policyOperators[2], 2);
 	}
 
 	public static String makePolicy(boolean elaborate, String[] names, Number... values) {
@@ -156,7 +197,7 @@ public class ShareMap implements java.io.Serializable
 				(available ? values[i] + "" : "0");
 			if (elaborate) {
 				available = isAvailable(i, names);
-				parts[i] = join(policyOperators[2], 
+				parts[i] = association(
 					available ? names[i] : placeholder(1 + i), 
 					parts[i]);
 			}
@@ -164,30 +205,43 @@ public class ShareMap implements java.io.Serializable
 		
 		return join(elaborate ? policyOperators[3] : policyOperators[0], parts);
 	}
-
-	public static String translatePolicy(String policy, String... names) throws PolicyException {
-		List<String> _names = new ArrayList<String>();
-		List<Integer> _proportions = new ArrayList<Integer>();
-		List<Double> _portions = new ArrayList<Double>();
+	
+	public interface PolicyEvaluator<T> {
+		public T evaluate(List<String> names, List<Integer> proportions, List<Double> portions) throws PolicyException;
+	}
+	
+	public static <T> T analyzePolicy(String policy, String options, PolicyEvaluator<T> analysis) throws PolicyException {
+		List<String> names = new ArrayList<String>();
+		List<Integer> proportions = new ArrayList<Integer>();
+		List<Double> portions = new ArrayList<Double>();
 		
-		int len = parsePolicy(policy, "", _names, _proportions, _portions);
+		int len = parsePolicy(policy, options, names, proportions, portions);
 		if (len < 1)
-			return "";
-		else {
-			Number[] values = new Number[len];
-			
-			for (int i = 0; i < len; i++) {
-				values[i] = _proportions.get(i);
-				if (values[i] == null)
-					values[i] = _portions.get(i);
-				if (isAvailable(i, names)) {
-					_names.remove(i);
-					_names.add(i, names[i]);
+			return null;
+		else 
+			return analysis.evaluate(names, proportions, portions);
+	}
+
+	public static String translatePolicy(final boolean elaborate, String policy, final String... names) throws PolicyException {
+		return analyzePolicy(policy, "", new PolicyEvaluator<String>() {
+			public String evaluate(List<String> _names, List<Integer> proportions, List<Double> portions) {
+				int len = _names.size();
+				Number[] values = new Number[len];
+				
+				for (int i = 0; i < len; i++) {
+					values[i] = proportions.get(i);
+					if (values[i] == null)
+						values[i] = portions.get(i);
+					
+					if (isAvailable(i, names)) {
+						_names.remove(i);
+						_names.add(i, names[i]);
+					}
 				}
+				
+				return makePolicy(elaborate, _names.toArray(new String[0]), values);
 			}
-			
-			return makePolicy(true, _names.toArray(new String[0]), values);
-		}
+		});
 	}
 
 	public static int parsePolicy(String policy, String options, Object... params) throws PolicyException {
@@ -195,14 +249,14 @@ public class ShareMap implements java.io.Serializable
 
 		String[] parts = new String[0];
 		
-		if (notNullOrEmpty(policy.trim())) {
+		if (notNullOrEmptyTrimmed(policy)) {
 			List<String> list = new ArrayList<String>();
 			list.addAll(Arrays.asList(policy.split(policyOperators[0] + "|\\n", -1)));		//	regex pattern requires \\n
 			for (int i = list.size() - 1; i > -1; i--) {
 				String part = list.get(i).trim();
 				if (part.contains(policyOperators[1])) {
 					String[] facts = part.split("\\" + policyOperators[1], 2);
-					Integer factor = parseInt(0, facts[1]);
+					Integer factor = parseInteger(0, facts[1]);
 					if (factor == null || factor < 1) 
 						throw new PolicyException(1);
 					else {
@@ -226,12 +280,12 @@ public class ShareMap implements java.io.Serializable
 		List<Integer> proportions = param(new ArrayList<Integer>(), 1, params);
 		List<Double> portions = param(new ArrayList<Double>(), 2, params);
 		
-		boolean elaborate = isPolicyElaborate(policy);
+		boolean elaborate = isElaborate(policy);
 		if (elaborate)
 			names.clear();
 		
 		for (int i = 0; i < parts.length; i++) {
-			String[] sides = parts[i].split("=", 2);
+			String[] sides = dissociation(parts[i]);
 			if (elaborate) {
 				if (sides.length < 2 || options.contains("2") && !isValidName(sides[0]))
 					throw new PolicyException(2);
@@ -241,8 +295,9 @@ public class ShareMap implements java.io.Serializable
 			}
 			
 			String part = sides[sides.length - 1];
-			proportions.add(i, parseInt(null, part));
-			portions.add(i, parseDouble(null, part));
+			Integer proportion = parseInteger(null, part);
+			proportions.add(i, proportion);
+			portions.add(i, proportion == null ? parseDouble(null, part) : null);
 		}
 		
 		return parts.length;
@@ -259,10 +314,8 @@ public class ShareMap implements java.io.Serializable
     public ShareMap(String[] names, double amount, String policy) {
     	setNames(names);
     	
-		if (!isNullOrEmpty(names) && 
-				(!notNullOrEmpty(policy) || policy.trim().length() < 1)) {
+		if (!isNullOrEmpty(names) && !notNullOrEmptyTrimmed(policy)) 
 			policy = makePolicy(false, names);
-		}
 
 		try {
 			updateWith(amount, policy);
@@ -271,40 +324,40 @@ public class ShareMap implements java.io.Serializable
 		}
     }
     
-    /** @hide */ public void updateWith(double amount, String policy) throws PolicyException {
+    /** @hide */ public void updateWith(final double amount, final String policy) throws PolicyException {
     	rawMap.clear();
 		
     	setAmount(amount);
     	
-		List<String> names = new ArrayList<String>();
-		List<Integer> proportions = new ArrayList<Integer>();
-		List<Double> portions = new ArrayList<Double>();
-		
-		int len = parsePolicy(policy, "2", names, proportions, portions);
-		
-		for (int i = 0; i < len; i++) {
-			if (proportions.get(i) == null) {
-				Double portion = portions.get(i);
-				if (portion != null) 
-					rawMap.put(names.get(i), -portion);
-				else 
-					throw new PolicyException(3);
+    	analyzePolicy(policy, "2", new PolicyEvaluator<Void>() {
+			public Void evaluate(List<String> _names, List<Integer> proportions, List<Double> portions) throws PolicyException {
+				for (int i = 0; i < _names.size(); i++) {
+					if (proportions.get(i) == null) {
+						Double portion = portions.get(i);
+						if (portion != null) 
+							rawMap.put(_names.get(i), -portion);
+						else 
+							throw new PolicyException(3);
+					}
+				}
+				
+		    	double _amount = amount;
+				for (Double portion : rawMap.values()) 
+					_amount += portion;
+				
+				Double[] distributed = distribute(-_amount, proportions.toArray(new Integer[0]));
+				for (int i = 0; i < distributed.length; i++)
+					if (distributed[i] != null)
+						rawMap.put(_names.get(i), distributed[i]);
+				
+				boolean elaborate = isElaborate(policy);
+				if (elaborate) 
+			    	setNames(_names.toArray(new String[0]));
+				else
+					renameWith(getNames());
+				return null;
 			}
-		}
-		
-		for (Double portion : rawMap.values()) 
-			amount += portion;
-		
-		Double[] distributed = distribute(-amount, proportions.toArray(new Integer[0]));
-		for (int i = 0; i < distributed.length; i++)
-			if (distributed[i] != null)
-				rawMap.put(names.get(i), distributed[i]);
-		
-		boolean elaborate = isPolicyElaborate(policy);
-		if (elaborate) 
-	    	setNames(names.toArray(new String[0]));
-		else
-			renameWith(getNames());
+		});
     }
     
     /** @hide */ public void renameWith(String... names) {
@@ -355,7 +408,6 @@ public class ShareMap implements java.io.Serializable
 	 */
     public ShareMap(String[] names, double amount, Double... portions) {
     	setNames(names);
-
     	updateWith(amount, portions);
     }
     
@@ -400,8 +452,9 @@ public class ShareMap implements java.io.Serializable
      */
     public double sum() {
     	double sum = 0;
-    	for (double value : rawMap.values()) 
-			sum += value;
+    	for (Double value : rawMap.values()) 
+    		if (value != null)
+    			sum += value;
     	return sum;
     }
     /**

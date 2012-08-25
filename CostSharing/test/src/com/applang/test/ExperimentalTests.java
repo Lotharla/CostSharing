@@ -18,10 +18,10 @@ public class ExperimentalTests extends ActivityTest
 		super();
 	}
 
-	public ExperimentalTests(String method) {
+/*	public ExperimentalTests(String method) {
 		super(method);
 	}
-
+*/
 	public void testRelatedTables() {
 		Helper.setDataDirectory(Environment.getDataDirectory().getPath());
 		SQLiteDatabase db = SQLiteDatabase.openDatabase(
