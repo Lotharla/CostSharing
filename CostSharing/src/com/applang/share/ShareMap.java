@@ -2,7 +2,7 @@ package com.applang.share;
 
 import java.util.*;
 
-import static com.applang.share.Util.*;
+import static com.applang.share.ShareUtil.*;
 
 /**
  * A <code>TreeMap</code> containing names as keys and shared amounts as values

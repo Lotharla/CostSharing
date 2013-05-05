@@ -5,21 +5,23 @@ import java.io.*;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.HashSet;
+import java.util.Locale;
 import java.util.Set;
 import java.util.logging.*;
 
+import com.applang.provider.TransactionProvider;
 import com.applang.share.*;
 
 public class Helper
 {
 	public static String formatAmount(double value) {
-		return String.format("%.2f", value);
+		return String.format(Locale.getDefault(), "%.2f", value);
 	}
 
-	public static SimpleDateFormat timestampFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
+	public static String timestampFormat = "yyyy-MM-dd HH:mm:ss.SSS";
 
 	public static String timestamp(Date date) {
-		return timestampFormat.format(date);
+		return new SimpleDateFormat(timestampFormat, Locale.US).format(date);
 	}
     
     public static String timestampNow() {
@@ -35,7 +37,7 @@ public class Helper
 	}
 
 	public static String databaseName() {
-		return "data";
+		return TransactionProvider.databaseName();
 	}
 
 	public static File databasesDir() {
@@ -48,7 +50,7 @@ public class Helper
 
 	public static String getDataDirectory() {
 		String dir = System.getProperty("data.dir");
-		if (Util.notNullOrEmpty(dir))
+		if (ShareUtil.notNullOrEmpty(dir))
 			return dir;
 		else
 			return System.getProperty("user.dir");
@@ -58,7 +60,7 @@ public class Helper
 		System.setProperty("data.dir", dir);
 	}
 
-	public static <T> String captureOutput(Util.Job job, Object... params) throws Exception {
+	public static String captureOutput(ShareUtil.Job job, Object... params) throws Exception {
 		PrintStream out = System.out;
 		ByteArrayOutputStream myOut = new ByteArrayOutputStream();
 		System.setOut(new PrintStream(myOut));

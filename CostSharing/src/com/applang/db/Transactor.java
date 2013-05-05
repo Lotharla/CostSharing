@@ -2,30 +2,36 @@ package com.applang.db;
 
 import java.util.*;
 
+import android.content.ContentResolver;
+import android.content.ContentUris;
 import android.content.Context;
 import android.content.ContentValues;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteException;
+import android.net.Uri;
 import android.util.Log;
 
-import com.applang.share.*;
+import static com.applang.Util.*;
+import static com.applang.provider.Transaction.*;
 
-import static com.applang.share.Util.*;
+import com.applang.provider.Transaction;
+import com.applang.provider.TransactionProvider;
+import com.applang.share.*;
 
 /**
  *	A class containing transactions and evaluation tools for a cost sharing system
  * 
  * @author lotharla
  */
-public class Transactor extends DbAdapter implements java.io.Serializable
+public class Transactor implements java.io.Serializable
 {
 	private static final long serialVersionUID = 1619400649251233944L;
 
 	public Transactor(Context context, Object... params) {
-		super(context, params);
+		contentResolver = context.getContentResolver();
 		
-		if (!tableExists(table1))
-			super.recreateTables(getDb());
+		if (!tableExists(kitty))
+			_clear();
 	}
 
 	public Transactor(Object... params) {
@@ -34,7 +40,7 @@ public class Transactor extends DbAdapter implements java.io.Serializable
     
 	private static final String TAG = Transactor.class.getSimpleName();
 	
-	private double debtLimit = minAmount;
+	private double debtLimit = ShareUtil.minAmount;
 	
 	private boolean breaksDebtLimit(double amount) {
     	double total = total();
@@ -55,11 +61,19 @@ public class Transactor extends DbAdapter implements java.io.Serializable
 	}
 
 	private boolean isInternal(String name) {
-    	return isKitty.apply(name);
+    	return kitty.equals(name);
     }
     
-    private String notInternalClause() {
+    private String notInternalCondition() {
     	return "name != " + enclose("'", kitty);
+    }
+    
+    private String whereClause(String... clause) {
+    	return nullOrEmpty(clause) || !notNullOrEmpty(clause[0]) ? "" : " where " + clause[0];
+    }
+   
+    public int composeFlags(int transactionCode, boolean expenseFlag) {
+    	return transactionCode * 100 + (expenseFlag ? 1 : 0);
     }
 	/**
 	 * The transaction registers the negated sum of the shares with the submitter.
@@ -81,11 +95,14 @@ public class Transactor extends DbAdapter implements java.io.Serializable
 				return -2;
 		}
 		
-		int entryId = addEntry(submitter, amount, currency, comment, !internal);
+		int transactionCode = 3;
+		int flags = composeFlags(transactionCode, !internal);
+		
+		int entryId = addEntry(submitter, amount, currency, comment, flags);
 		if (entryId < 0)
 			return -1;
 		
-    	if (allocate(!internal, entryId, shares.rawMap)) {
+    	if (allocate(flags, entryId, shares.rawMap)) {
 			String action = internal ? "reallocation of" : submitter + " expended";
     		Log.i(TAG, String.format("entry %d: %s %f %s for '%s' shared by %s", 
     				entryId, action, Math.abs(amount), currency, comment, shares.toString()));
@@ -109,9 +126,12 @@ public class Transactor extends DbAdapter implements java.io.Serializable
      */
 	public int performComplexExpense(ShareMap deals, String comment, ShareMap shares) {
     	int entryId = -1;
+		
+		int transactionCode = 3;
+		int flags = composeFlags(transactionCode, true);
     	
     	double amount = deals.sum();
-    	if (Math.abs(amount + shares.sum()) < delta) {
+    	if (Math.abs(amount + shares.sum()) < ShareUtil.delta) {
     		if (deals.option != null)
     			switch (deals.option) {
 				default:
@@ -124,11 +144,11 @@ public class Transactor extends DbAdapter implements java.io.Serializable
     		else
 				entryId = getNewEntryId();
     		
-    		Collection<String> dealers = filter(deals.rawMap.keySet(), true, isKitty);
+    		Collection<String> dealers = ShareUtil.filter(deals.rawMap.keySet(), true, ShareUtil.isKitty);
     		
 	    	for (String name : dealers) {
 				long rowId = addRecord(entryId, 
-						name, deals.rawMap.get(name), currency, Helper.timestampNow(), comment, true);
+						name, deals.rawMap.get(name), currency, Helper.timestampNow(), comment, flags);
 				if (rowId < 0) {
 		    		entryId = -1;
 		    		break;
@@ -140,7 +160,7 @@ public class Transactor extends DbAdapter implements java.io.Serializable
     				amount, comment, shares.sum()));
     	
     	if (entryId > -1) {
-        	if (allocate(true, entryId, shares.rawMap)) {
+        	if (allocate(flags, entryId, shares.rawMap)) {
         		Log.i(TAG, String.format("entry %d: %s expended %f %s for '%s' shared by %s", 
         				entryId, deals.toString(), Math.abs(amount), currency, comment, shares.toString()));
         	}
@@ -171,12 +191,15 @@ public class Transactor extends DbAdapter implements java.io.Serializable
 				return -2;
 		}
 		
-		int entryId = addEntry(sender, amount, currency, comment, false);
+		int transactionCode = 2;
+		int flags = composeFlags(transactionCode, false);
+		
+		int entryId = addEntry(sender, amount, currency, comment, flags);
 		if (entryId < 0)
 			return -1;
 		
-		boolean expense = sender.equals(recipient);
-		long rowId = addRecord(entryId, recipient, -amount, currency, Helper.timestampNow(), comment, expense);
+		flags = composeFlags(transactionCode, sender.equals(recipient));
+		long rowId = addRecord(entryId, recipient, -amount, currency, Helper.timestampNow(), comment, flags);
 		if (rowId < 0){
     		removeEntry(entryId);
 			return -1;
@@ -198,7 +221,10 @@ public class Transactor extends DbAdapter implements java.io.Serializable
 	 * @return	the entry id of the transaction or -1 in case the transaction failed or -2 if the transaction violates the 'no negative total' rule
 	 */
 	public int performSubmission(String submitter, double amount, String comment) {
-		int entryId = addEntry(submitter, amount, currency, comment, false);
+		int transactionCode = 1;
+		int flags = composeFlags(transactionCode, false);
+		
+		int entryId = addEntry(submitter, amount, currency, comment, flags);
 		
 		if (entryId > -1) {
 			if (breaksDebtLimit(-amount)) {
@@ -224,11 +250,14 @@ public class Transactor extends DbAdapter implements java.io.Serializable
 		if (breaksDebtLimit(-deals.sum())) 
 			return -2;
 		
+		int transactionCode = 4;
+		int flags = composeFlags(transactionCode, false);
+		
     	int entryId = getNewEntryId();
     	
 		if (entryId > -1) {
 			for (Map.Entry<String, Double> share : deals.rawMap.entrySet())
-				if (addRecord(entryId, share.getKey(), share.getValue(), currency, Helper.timestampNow(), comment, false) < 0) {
+				if (addRecord(entryId, share.getKey(), share.getValue(), currency, Helper.timestampNow(), comment, flags) < 0) {
 		    		removeEntry(entryId);
 					return -1;
 				}
@@ -254,8 +283,8 @@ public class Transactor extends DbAdapter implements java.io.Serializable
 	 * @return	a sorted map containing the names as key and the cash flow of that participant as value
      */
     public ShareMap cashFlow() {
-		return rawQuery("select name, sum(amount) as balance from " + table1 + 
-				" where " + notInternalClause() + " and timestamp not null group by name order by name", null, 
+		return rawQuery("select name, sum(amount) as balance from " + kitty + 
+				whereClause(notInternalCondition()) + " and timestamp not null group by name order by name", null, 
 			new QueryEvaluator<ShareMap>() {
 				public ShareMap evaluate(Cursor cursor, ShareMap defaultResult, Object... params) {
 					ShareMap sm = new ShareMap();
@@ -274,8 +303,8 @@ public class Transactor extends DbAdapter implements java.io.Serializable
 	 * @return	a sorted map containing the names as keys and the balances as values
      */
     public ShareMap balances() {
-		return rawQuery("select name, sum(amount) as balance from " + table1 + 
-				" where " + notInternalClause() + " group by name order by name", null, 
+		return rawQuery("select name, sum(amount) as balance from " + kitty + 
+				whereClause(notInternalCondition()) + " group by name order by name", null, 
 			new QueryEvaluator<ShareMap>() {
 				public ShareMap evaluate(Cursor cursor, ShareMap defaultResult, Object... params) {
 					ShareMap sm = new ShareMap();
@@ -294,14 +323,14 @@ public class Transactor extends DbAdapter implements java.io.Serializable
      * @return	the sum over the amounts of all records in the table
      */
     public double total() {
-    	return getSum(null);
+    	return getSum();
     }
     /**
      * calculates the accumulated costs
      * @return	the sum over all entries marked as 'expense'
      */
     public double expenses() {
-    	return getSum("expense > 0 and timestamp not null");
+    	return getSum("flags % 10 > 0 and timestamp not null");
     }
 
 	private static String sharingPolicy = "";    //	uniform sharing among all participants
@@ -348,7 +377,7 @@ public class Transactor extends DbAdapter implements java.io.Serializable
      * @return	a sorted array of all names of the participants
      */
     public String[] sortedNames() {
-		return rawQuery("select distinct name from " + table1 + " where " + notInternalClause(), null, 
+		return rawQuery("select distinct name from " + kitty + whereClause(notInternalCondition()), null, 
 			new QueryEvaluator<String[]>() {
 				public String[] evaluate(Cursor cursor, String[] defaultResult, Object... params) {
 			    	TreeSet<String> names = new TreeSet<String>();
@@ -363,7 +392,7 @@ public class Transactor extends DbAdapter implements java.io.Serializable
      * @return	a sorted array of distinct comments
      */
     public String[] sortedComments() {
-		return rawQuery("select distinct comment from " + table1 + " where length(comment) > 0", null, 
+		return rawQuery("select distinct comment from " + kitty + whereClause("length(comment) > 0"), null, 
 			new QueryEvaluator<String[]>() {
 				public String[] evaluate(Cursor cursor, String[] defaultResult, Object... params) {
 			    	TreeSet<String> comments = new TreeSet<String>();
@@ -378,9 +407,8 @@ public class Transactor extends DbAdapter implements java.io.Serializable
      * @param clause	the condition constraining the query through a where clause
      * @return	a sorted array of entries identified by their id
      */
-    public Integer[] getEntryIds(String clause) {
-		return rawQuery("select entry from " + table1 + 
-				(notNullOrEmpty(clause) ? " where " + clause : ""), null, 
+    public Integer[] getEntryIds(String... clause) {
+		return rawQuery("select entry from " + kitty + whereClause(clause), null, 
 			new QueryEvaluator<Integer[]>() {
 				public Integer[] evaluate(Cursor cursor, Integer[] defaultResult, Object... params) {
 			    	TreeSet<Integer> ids = new TreeSet<Integer>();
@@ -396,8 +424,7 @@ public class Transactor extends DbAdapter implements java.io.Serializable
      * @return	the textual representations of all the entries to the active database table
      */
     public String[] getEntryStrings(String clause, final String tableName) {
-		return rawQuery("select distinct entry from " + tableName + 
-				(notNullOrEmpty(clause) ? " where " + clause : ""), null, 
+		return rawQuery("select distinct entry from " + tableName + whereClause(clause), null, 
 			new QueryEvaluator<String[]>() {
 				public String[] evaluate(Cursor cursor, String[] defaultResult, Object... params) {
 			    	ArrayList<String> strings = new ArrayList<String>();
@@ -413,7 +440,7 @@ public class Transactor extends DbAdapter implements java.io.Serializable
      * @return	textual representation of the entry to the active database table
      */
     public String getEntryString(int entryId, String tableName) {
-		return rawQuery("select * from " + tableName + " where entry=" + entryId, null, 
+		return rawQuery("select * from " + tableName + whereClause("entry=" + entryId), null, 
 			new QueryEvaluator<String>() {
 				public String evaluate(Cursor cursor, String defaultResult, Object... params) {
 					String s = "";
@@ -434,9 +461,8 @@ public class Transactor extends DbAdapter implements java.io.Serializable
      * @param clause	a condition constraining the query through a where clause
      * @return	a sorted array of records identified by their row id
      */
-    public Long[] getRowIds(String clause) {
-		return rawQuery("select rowid from " + table1 + 
-				(notNullOrEmpty(clause) ? " where " + clause : ""), null, 
+    public Long[] getRowIds(String... clause) {
+		return rawQuery("select rowid from " + kitty + whereClause(clause), null, 
 			new QueryEvaluator<Long[]>() {
 				public Long[] evaluate(Cursor cursor, Long[] defaultResult, Object... params) {
 			    	TreeSet<Long> ids = new TreeSet<Long>();
@@ -451,9 +477,8 @@ public class Transactor extends DbAdapter implements java.io.Serializable
      * @param clause	a condition constraining the query through a where clause
      * @return	a aggregated sum of the amount values in the queried records
      */
-    public double getSum(String clause) {
-		return rawQuery("select sum(amount) from " + table1 + 
-				(notNullOrEmpty(clause) ? " where " + clause : ""), null, 
+    public Double getSum(String... clause) {
+		return rawQuery("select sum(amount) from " + kitty + whereClause(clause), null, 
 			new QueryEvaluator<Double>() {
 				public Double evaluate(Cursor cursor, Double defaultResult, Object... params) {
 					if (cursor.moveToFirst()) 
@@ -461,15 +486,16 @@ public class Transactor extends DbAdapter implements java.io.Serializable
 					else
 						return defaultResult;
 				}
-			}, 0.);
+			}, null);
 	}
     /**
-     * @param clause	a condition constraining the query through a where clause
+     * @param params	an array of parameters : the first is the name of the table to count the records in (default is the main table) and the second is a condition constraining the query in a where clause
      * @return	the count of the queried records
      */
-    public int getCount(String clause) {
-		return rawQuery("select count(*) from " + table1 + 
-				(notNullOrEmpty(clause) ? " where " + clause : ""), null, 
+    public Integer getCount(Object... params) {
+    	String tableName = param(kitty, 0, params);
+    	String clause = param(null, 1, params);
+		return rawQuery("select count(*) from " + tableName + whereClause(clause), null, 
 			new QueryEvaluator<Integer>() {
 				public Integer evaluate(Cursor cursor, Integer defaultResult, Object... params) {
 					if (cursor.moveToFirst()) 
@@ -477,7 +503,7 @@ public class Transactor extends DbAdapter implements java.io.Serializable
 					else
 						return defaultResult;
 				}
-			}, 0);
+			}, null);
     }
     /**
      * determines whether the table with the name exists in the database
@@ -488,19 +514,47 @@ public class Transactor extends DbAdapter implements java.io.Serializable
 		return rawQuery("select name from sqlite_master where type = 'table'", null, 
 			new QueryEvaluator<Boolean>() {
 				public Boolean evaluate(Cursor cursor, Boolean defaultResult, Object... params) {
-			    	String name = (String)params[0];
 			    	Boolean result = defaultResult;
+			    	String name = param("", 0, params);
 			    	
-			    	if (cursor.moveToFirst()) do {
-		        		if (name.compareTo(cursor.getString(0)) == 0) {
-		        			result = true;
-		        			break;
-		        		}
-		    		} while (cursor.moveToNext());
+			    	if (cursor.moveToFirst()) 
+			    		do {
+			        		if (name.compareToIgnoreCase(cursor.getString(0)) == 0) {
+			        			result = true;
+			        			break;
+			        		}
+			    		} while (cursor.moveToNext());
 					
 			    	return result;
 				}
 			}, false, name);
+    }
+    /**
+     * retrieves the names of tables that exist under a given name or - if no name is given - are current
+     * @param suffix	the name of a saved table if given
+     * @return	the <code>Set</code> of table names
+     */
+    public Set<String> tableSet(Object... suffix) {
+		return rawQuery("select name from sqlite_master where type = 'table'", null, 
+			new QueryEvaluator<Set<String>>() {
+				public Set<String> evaluate(Cursor cursor, Set<String> defaultResult, Object... params) {
+			    	TreeSet<String> set = new TreeSet<String>();
+			    	String suffix = param(null, 0, params);
+			    	
+			    	if (cursor.moveToFirst()) 
+			    		do {
+			        		String name = cursor.getString(0);
+							if (suffix == null) {
+								if (tableList.contains(name))
+									set.add(name);
+							}
+							else if (name.endsWith("_" + suffix)) 
+								set.add(name);
+			    		} while (cursor.moveToNext());
+					
+			    	return set;
+				}
+			}, null, suffix);
     }
     /**
      * retrieves the names of tables that had been 'saved' in the past
@@ -511,12 +565,14 @@ public class Transactor extends DbAdapter implements java.io.Serializable
 			new QueryEvaluator<Set<String>>() {
 				public Set<String> evaluate(Cursor cursor, Set<String> defaultResult, Object... params) {
 			    	TreeSet<String> names = new TreeSet<String>();
+	        		String prefix = ShareUtil.tableName("");
 		    		
-			    	if (cursor.moveToFirst()) do {
-		        		String name = cursor.getString(0);
-		        		if (name.startsWith(tableName("")))
-		        			names.add(name);
-		    		} while (cursor.moveToNext());
+			    	if (cursor.moveToFirst()) 
+			    		do {
+			        		String name = cursor.getString(0);
+							if (name.startsWith(prefix))
+			        			names.add(name);
+			    		} while (cursor.moveToNext());
 					
 			    	Log.i(TAG, String.format("saved tables : %s", names.toString()));
 			    	return names;
@@ -524,66 +580,60 @@ public class Transactor extends DbAdapter implements java.io.Serializable
 			}, null);
     }
     /**
-     * 
-     * @param suffix	an arbitrary <code>String</code> which is legal as an SQLite table name
-     * @return	the complete SQLite table name
-     */
-    public String tableName(String suffix) {
-    	return tableName(table1, suffix);
-    }
-    
-    protected String tableName(String prefix, String suffix) {
-    	if (suffix == null)
-    		return prefix;
-    	else
-    		return prefix + "_" + suffix;
-    }
-    /**
-     * changes the name of the table that has been worked on with transactions (current table). 
+     * changes the name of the table that has been worked on (current table). 
      * Thus this table is 'saved' in the same database. Note that the current table is non-existing after this operation. 
      * In order to continue the current table has to be restored (loadFrom) or recreated (clear).
-     * @param newSuffix	the <code>String</code> to append to the name of the current table in order to form the new table name 
+     * @param suffix	the <code>String</code> to append to the name of the current table in order to form the new table name 
      * @return	success if true
      */
-    public boolean saveAs(String newSuffix) {
-    	if (newSuffix == null || newSuffix.length() < 1)
+    public boolean saveAs(String suffix) {
+    	if (!notNullOrEmpty(suffix))
     		return false;
     	
-    	String newTableName = tableName(newSuffix);
+    	String newTableName = ShareUtil.tableName(suffix);
     	if (savedTables().contains(newTableName))
     		return false;
-    		
-    	rename(table1, newTableName);
     	
-    	String oldTableName = tableList.get(1);
-    	if (tableExists(oldTableName)) {
-    		newTableName = tableName(oldTableName, newSuffix);
-        	rename(oldTableName, newTableName);
-    	}
+    	for (int index : savedTableIndices()) {
+    		String oldTableName = tableList.get(index);
+        	if (tableExists(oldTableName) && getCount(oldTableName) > 0) {
+        		newTableName = ShareUtil.tableName(oldTableName, suffix);
+            	rename(oldTableName, newTableName);
+        	}
+        	else
+        		drop(oldTableName);
+		}
     	
 		Log.i(TAG, String.format("table saved as '%s'", newTableName));
     	return true;
     }
+    
+    protected int[] savedTableIndices() {
+    	return new int[] {0,1};
+    }
+    
     /**
      * restores one of the saved tables as the current table. Note that the table that was current up to this point will be dropped.
      * Also there will be one less 'saved' table after this operation.
-     * @param oldSuffix	the <code>String</code> to append to the name of the current table in order to form the old table name 
+     * @param suffix	the <code>String</code> to append to the name of the current table in order to form the old table name 
      * @return	success if true
      */
-    public boolean loadFrom(String oldSuffix) {
-    	if (oldSuffix == null || oldSuffix.length() < 1)
+    public boolean loadFrom(String suffix) {
+    	if (!notNullOrEmpty(suffix))
     		return false;
     	
-    	String oldTableName = tableName(oldSuffix);
+    	String oldTableName = ShareUtil.tableName(suffix);
     	if (!savedTables().contains(oldTableName))
     		return false;
     		
-    	rename(oldTableName, table1);
-    	
-    	String newTableName = tableList.get(1);
-    	oldTableName = tableName(newTableName, oldSuffix);
-    	if (tableExists(oldTableName))
-    		rename(oldTableName, newTableName);
+    	for (int index : savedTableIndices()) {
+    		String newTableName = tableList.get(index);
+	    	oldTableName = ShareUtil.tableName(newTableName, suffix);
+	    	if (tableExists(oldTableName))
+	    		rename(oldTableName, newTableName);
+	    	else
+	    		create(newTableName);
+    	}
     	
 		Log.i(TAG, String.format("table loaded from '%s'", oldTableName));
     	return true;
@@ -591,11 +641,10 @@ public class Transactor extends DbAdapter implements java.io.Serializable
     /**
      * deletes all records from the current table and recreates it
      */
-    @Override
     public void clear() {
-    	int count = tableExists(table1) ? getCount(null) : 0;
-    	super.clear();
-		Log.i(TAG, String.format("table '%s' cleared, %d records deleted", table1, count));
+    	Integer count = tableExists(kitty) ? getCount() : 0;
+    	_clear();
+		Log.i(TAG, String.format("table '%s' cleared, %d records deleted", kitty, count));
 		setSharingPolicy(null);
     }
     /**
@@ -605,8 +654,8 @@ public class Transactor extends DbAdapter implements java.io.Serializable
     	for (String table : savedTables())
     		drop(table);
     	
-    	super.clear();
-		Log.i(TAG, String.format("table '%s' cleared, all saved tables dropped", table1));
+    	_clear();
+		Log.i(TAG, String.format("table '%s' cleared, all saved tables dropped", kitty));
 		setSharingPolicy(null);
     }
 	
@@ -625,16 +674,16 @@ public class Transactor extends DbAdapter implements java.io.Serializable
     }
 
 	/** @hide */ public boolean isExpense(long rowId) {
-		return rawQuery("select expense from " + table1 + " where ROWID=" + rowId, null, 
+		return rawQuery("select flags from " + kitty + " where ROWID=" + rowId, null, 
 			new QueryEvaluator<Boolean>() {
 				public Boolean evaluate(Cursor cursor, Boolean defaultResult, Object... params) {
-					return cursor.moveToFirst() && cursor.getInt(0) > 0;
+					return cursor.moveToFirst() && cursor.getInt(0) % 10 > 0;
 				}
 			}, false);
 	}
 	
 	/** @hide */ public int getNewEntryId() {
-		return 1 + rawQuery("select max(entry) from " + table1, null, 
+		return 1 + rawQuery("select max(entry) from " + kitty, null, 
 			new QueryEvaluator<Integer>() {
 				public Integer evaluate(Cursor cursor, Integer defaultResult, Object... params) {
 					if (cursor.moveToFirst()) 
@@ -645,10 +694,10 @@ public class Transactor extends DbAdapter implements java.io.Serializable
 			}, -1);
     }
    
-    /** @hide */ public int addEntry(String name, double amount, String currency, String comment, boolean expense) {
+    /** @hide */ public int addEntry(String name, double amount, String currency, String comment, int flags) {
     	int entryId = getNewEntryId();
         
-        long rowId = addRecord(entryId, name, amount, currency, Helper.timestampNow(), comment, expense);
+        long rowId = addRecord(entryId, name, amount, currency, Helper.timestampNow(), comment, flags);
         if (rowId < 0) {
     		removeEntry(entryId);
     		entryId = -1;
@@ -671,11 +720,11 @@ public class Transactor extends DbAdapter implements java.io.Serializable
 			}, null);
     }
     
-    /** @hide */ public boolean allocate(boolean expense, int entryId, Map<String, Double> portions) {
+    /** @hide */ public boolean allocate(int flags, int entryId, Map<String, Double> portions) {
 		for (String name : portions.keySet()) {
 			double portion = portions.get(name);
 
-			if (addRecord(entryId, name, portion, null, null, null, expense) < 0)
+			if (addRecord(entryId, name, portion, null, null, null, flags) < 0)
 				return false;
 		}
 		
@@ -727,7 +776,7 @@ public class Transactor extends DbAdapter implements java.io.Serializable
     	return delete("entry=" + entryId);
     }
     
-    protected ContentValues putValues(Integer entry, String name, Double amount, String currency, String timestamp, String comment, Boolean expense) {
+    protected ContentValues putValues(Integer entry, String name, Double amount, String currency, String timestamp, String comment, Integer flags) {
         ContentValues values = new ContentValues();
         
     	String[] fields = getFieldNames();
@@ -737,45 +786,74 @@ public class Transactor extends DbAdapter implements java.io.Serializable
         if (currency != null) values.put(fields[3], currency);
         if (timestamp != null) values.put(fields[4], timestamp);
         if (comment != null) values.put(fields[5], comment);
-        if (expense != null) values.put(fields[6], expense ? 1 : 0);
+        if (flags != null) values.put(fields[6], flags);
         
         return values;
     }
 	
-    protected long addRecord(int entryId, String name, double amount, String currency, String timestamp, String comment, boolean expense) {
-        ContentValues values = putValues(entryId, name, amount, currency, timestamp, comment, expense);
+    protected long addRecord(int entryId, String name, double amount, String currency, String timestamp, String comment, int flags) {
+        ContentValues values = putValues(entryId, name, amount, currency, timestamp, comment, flags);
     	long rowId = insert(values);
     	if (rowId < 0)
     		Log.e(TAG, String.format(".addRecord failed with : %s", values.toString()));
     	return rowId;
 	}
 
-	protected int updateExpenseFlag(long rowId, boolean expense) {
-		return update(rowId, putValues(null, null, null, null, null, null, expense));
+	protected int updateExpenseFlag(long rowId, int flags) {
+		return update(rowId, putValues(null, null, null, null, null, null, flags));
 	}
 
     protected String[] getFieldNames() {
-    	return new String[] {"entry", "name", "amount", "currency", "timestamp", "comment", "expense", "ROWID"};
+    	return new String[] {"entry", "name", "amount", "currency", "timestamp", "comment", "flags", "ROWID"};
     }
 
-    static {
-    	tableDefs.put(kitty, 
-			"entry integer not null," +		//	unique for the entries, reference for the portions
-			"name text not null," +			//	the person involved
-			"amount real not null," +		//	the amount of money, negative for portions
-			"currency text," +				//	if null it's the default currency (Euro or Dollar or ...)
-			"timestamp text," +				//	if null it's a portion
-			"comment text," +				//	optional, for recognition
-			"expense integer not null"		//	boolean, if true then the amount has been expended and likely shared among others
-    	);
-    	tableDefs.put("Purposes", 
-			"entry integer not null," + 
-			"categoryId integer not null," + 
-			"foreign key(categoryId) references Categories(categoryId)"
-    	);
-    	tableDefs.put("Categories", 
-			"categoryId integer primary key," + 
-			"category text"
-    	);
+    private static List<String> tableList = new ArrayList<String>(Transaction.tableDefs.keySet());
+	
+    private ContentResolver contentResolver;
+    
+    protected void _clear() {
+    	contentResolver.query(TransactionProvider.contentUri("clear"), null, null, null, null);
     }
+    
+    public void drop(String tableName) {
+    	Uri uri = TransactionProvider.contentUri("drop");
+    	uri = Uri.withAppendedPath(uri, tableName);
+		contentResolver.query(uri, null, null, null, null);
+	}
+    
+    protected void create(String tableName) {
+    	Uri uri = TransactionProvider.contentUri("create");
+    	uri = Uri.withAppendedPath(uri, tableName);
+		contentResolver.query(uri, null, null, null, null);
+	}
+    
+	protected void rename(String oldTableName, String newTableName) {
+    	Uri uri = TransactionProvider.contentUri("rename");
+    	uri = Uri.withAppendedPath(uri, oldTableName);
+    	uri = Uri.withAppendedPath(uri, newTableName);
+		contentResolver.query(uri, null, null, null, null);
+	}
+
+	private Uri KITTY_URI = TransactionProvider.contentUri(0);
+	
+    protected long insert(ContentValues values) {
+    	Uri uri = contentResolver.insert(KITTY_URI, values);
+    	return toLong(-1L, uri.getPathSegments().get(1));
+	}
+
+	protected int update(long rowId, ContentValues values) {
+		return contentResolver.update(ContentUris.withAppendedId(KITTY_URI, rowId), values, "", null);
+	}
+
+	protected int delete(String clause) {
+		return contentResolver.delete(KITTY_URI, clause, null);
+	}
+
+	protected Cursor query(String[] columns, String clause) {
+		return contentResolver.query(KITTY_URI, columns, clause, null, null);
+	}
+	
+	public Cursor rawQuery(String sql, String[] selectionArgs) {
+		return contentResolver.query(TransactionProvider.contentUri("raw"), null, sql, selectionArgs, null);
+	}
 }

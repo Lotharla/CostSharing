@@ -4,18 +4,18 @@ import java.io.File;
 import java.util.Locale;
 
 import android.content.ContentValues;
-import android.content.Context;
 import android.database.Cursor;
 import android.database.sqlite.*;
 import android.os.Environment;
 import android.util.Log;
 
+import com.applang.CostSharingActivity;
 import com.applang.db.*;
 
-public class ExperimentalTests extends ActivityTest
+public class ExperimentalTests extends ActivityTest<CostSharingActivity>
 {
 	public ExperimentalTests() {
-		super();
+		super("com.applang", CostSharingActivity.class);
 	}
 
 /*	public ExperimentalTests(String method) {

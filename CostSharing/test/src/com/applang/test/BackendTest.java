@@ -3,58 +3,50 @@ package com.applang.test;
 import java.util.*;
 
 import android.database.Cursor;
-import android.database.sqlite.SQLiteDatabase;
 
+import com.applang.CostSharingActivity;
 import com.applang.db.*;
+import com.applang.provider.Transaction;
 import com.applang.share.*;
 
 import static com.applang.test.AssertHelper.*;
+import static com.applang.share.ShareUtil.*;
 
-public class BackendTest extends ActivityTest 
+public class BackendTest extends ActivityTest<CostSharingActivity> 
 {
 	public BackendTest() {
-		super();
+		super("com.applang", CostSharingActivity.class);
 	}
 
-	public BackendTest(String method) {
+/*	public BackendTest(String method) {
 		super(method);
 	}
-
+*/
 	public Transactor transactor;
 
     @Override
     protected void setUp() throws Exception {
-        transactor = new Transactor(this.getActivity());
-        
         super.setUp();	//	database file exists ?
     	
+        transactor = new Transactor(this.getActivity());
     	transactor.clear();
     }
-    
-    protected String suffix = "";
 
 	@Override
     protected void tearDown() throws Exception {
-		saveTest(suffix);
-		transactor.close();
         super.tearDown();
 	}
 
     public void testConnect() {
-    	DbAdapter dbAdapter = new Transactor(getActivity());
-    	
-    	SQLiteDatabase db = dbAdapter.getDb();
-    	assertTrue("database not open", db.isOpen());
-    	
         Cursor cursor = null;
 		try {
-			cursor = db.rawQuery("select * from sqlite_master;", new String[] {});
+			cursor = transactor.rawQuery("select * from sqlite_master;", new String[] {});
 		    assertTrue(cursor.getCount() > 0);
 			cursor.close();
 			
-		    cursor = db.rawQuery("pragma table_info(" + dbAdapter.table1 + ")", null);
+		    cursor = transactor.rawQuery("pragma table_info(" + kitty + ")", null);
 		    assertEquals(7, cursor.getCount());
-		    String[] columnDefs = DbAdapter.tableDefs.get(dbAdapter.table1).split(",");
+		    String[] columnDefs = Transaction.tableDefs.get(kitty).split(",");
 		    assertTrue(cursor.moveToFirst());
 		    int i = 0;
             do {
@@ -69,8 +61,6 @@ public class BackendTest extends ActivityTest
 			if (cursor != null)
 				cursor.close();
 		}
-			
-		dbAdapter.close();
 	}
     
     String[] participants = new String[] {"Sue", "Bob", "Tom"};
@@ -89,7 +79,7 @@ public class BackendTest extends ActivityTest
     }
     
     public void testEntry() {
-    	int entryId = transactor.addEntry("Bob", 100.5, null, "gas", true);
+    	int entryId = transactor.addEntry("Bob", 100.5, null, "gas", transactor.composeFlags(0, true));
     	assertEquals(transactor.getNewEntryId() - 1, entryId);
     	
     	transactor.fetchEntry(entryId, 
@@ -114,7 +104,7 @@ public class BackendTest extends ActivityTest
 	}
     
     void zeroSumTest(int entry, Object... params) {
-		double sum = transactor.getSum("entry=" + entry + Util.param("", 0, params));
+		Double sum = transactor.getSum("entry=" + entry + param("", 0, params));
 		assertAmountZero("Transaction leaking.", sum);
     }
     
@@ -122,14 +112,14 @@ public class BackendTest extends ActivityTest
     	final int sign = expense ? 1 : -1;
     	final double allocation = 120 * sign;
     	
-    	int entryId = transactor.addEntry(expense ? "Bob" : "", allocation, null, "test", expense);
+    	int entryId = transactor.addEntry(expense ? "Bob" : "", allocation, null, "test", transactor.composeFlags(0, expense));
     	
     	ShareMap portions = new ShareMap(
     			new String[] {"Bob","Sue","Tom"}, 
     			allocation, 
     			null, allocation / 4, allocation / 3);
     	
-    	assertTrue(transactor.allocate(expense, entryId, portions.rawMap));
+    	assertTrue(transactor.allocate(transactor.composeFlags(0, expense), entryId, portions.rawMap));
     	
     	entrySizeTest(4, entryId);
     	zeroSumTest(entryId);
@@ -172,9 +162,9 @@ public class BackendTest extends ActivityTest
 	    	}
     	
     	assertTrue(-1 < transactor.performSubmission(participants[0], 99., "test1"));
-    	assertEquals(-2, transactor.performExpense(Util.kitty, "test1", new ShareMap(participants, -100.)));
+    	assertEquals(-2, transactor.performExpense(kitty, "test1", new ShareMap(participants, -100.)));
     	
-    	int id = transactor.performExpense(Util.kitty, "test1", new ShareMap(participants, -99.));
+    	int id = transactor.performExpense(kitty, "test1", new ShareMap(participants, -99.));
     	entrySizeTest(4, id);
     	zeroSumTest(id);
     	
@@ -182,42 +172,50 @@ public class BackendTest extends ActivityTest
     	
     	id = transactor.performExpense(participants[2], "test2", new ShareMap(participants, 70., "3:0:4"));
     	entrySizeTest(4, id);
-    	zeroSumTest(id, " and expense > 0");
+    	zeroSumTest(id, " and flags % 10 > 0");
     }
     
-    public void testSaveLoad() {
+    public void testSaveAndLoad() {
     	for (String participant : participants)
     		submissionTest(participant, 50, "stake");
     	
-    	int count = transactor.getCount(null);
-    	double sum = transactor.getSum(null);
-		assertEquals(participants.length, count);
+    	Integer count = transactor.getCount();
+		assertEquals(new Integer(participants.length), count);
+    	Double sum = transactor.getSum();
     	
     	saveTest("test");
     	
     	transactor.clear();
-		assertEquals(0, transactor.getCount(null));
+		assertEquals(new Integer(0), transactor.getCount());
 		
 		loadTest("test");
 		
-		assertEquals(count, transactor.getCount(null));
-		assertEquals(sum, transactor.getSum(null));
+		assertEquals(count, transactor.getCount());
+		assertEquals(sum, transactor.getSum());
  	}
     
     void saveTest(String suffix) {
     	if (suffix.length() < 1)
     		return;
     	
-    	String tableName = transactor.tableName(suffix);
-    	transactor.drop(tableName);
+    	Set<String> tableSet = transactor.tableSet(suffix);
+    	for (String table : tableSet) 
+        	transactor.drop(table);
+
     	assertTrue(transactor.saveAs(suffix));
-    	assertTrue(transactor.savedTables().contains(tableName));
+    	
+    	Set<String> tables = transactor.savedTables();
+    	System.out.println(tables.toString());
+		assertTrue(tables.contains(tableName(suffix)));
     }
     
     void loadTest(String suffix) {
-    	String tableName = transactor.tableName(suffix);
-    	assertTrue(transactor.savedTables().contains(tableName));
-    	transactor.drop(transactor.tableName(null));
+    	assertTrue(transactor.savedTables().contains(tableName(suffix)));
+    	
+    	Set<String> tableSet = transactor.tableSet();
+    	for (String table : tableSet) 
+        	transactor.drop(table);
+
 		assertTrue(transactor.loadFrom(suffix));
     }
     
@@ -242,19 +240,21 @@ public class BackendTest extends ActivityTest
     	for (Integer id : ids) 
     		discardTest(id);
     	
-    	assertEquals("discard failed.", 0, transactor.getCount(null));
+    	assertEquals("discard failed.", new Integer(0), transactor.getCount());
     }
     
-    void transferTest(String submitter, double amount, String purpose, String recipient) {
+    int transferTest(String submitter, double amount, String purpose, String recipient) {
     	int entryId = transactor.performTransfer(submitter, amount, purpose, recipient);
     	entrySizeTest(2, entryId);
     	zeroSumTest(entryId);
+    	return entryId;
  	}
     
-    void discardTest(int entryId) {
+    int discardTest(int entryId) {
     	int discarded = transactor.performDiscard(entryId);
     	assertTrue("Nothing deleted.", discarded > 0);
     	entrySizeTest(0, entryId);
+    	return discarded;
  	}
     
     int entryTest(int entry, final int size, final ShareMap shares) {
@@ -288,7 +288,7 @@ public class BackendTest extends ActivityTest
 			}, null);
     	
     	if (shares != null) 
-    		zeroSumTest(entry, " and expense > 0");
+    		zeroSumTest(entry, " and flags % 10 > 0");
     	
 		return entry;
     }
@@ -322,22 +322,25 @@ public class BackendTest extends ActivityTest
     	return entryTest(entry, 1, shares);
     }
     
-    int expenseTest(String submitter, double amount, String purpose, String policy) {
-		ShareMap shares = new ShareMap(participants, amount, policy);
-    	int entryId = transactor.performExpense(submitter, purpose, shares);
+    int expenseTest(String[] names, Double[] amounts, String purpose, String policy) {
+    	if (names.length > 1)
+    		return complexExpenseTest(names, amounts, purpose, policy);
+    	
+		ShareMap shares = new ShareMap(participants, amounts[0], policy);
+    	int entryId = transactor.performExpense(names[0], purpose, shares);
     	return entryTest(entryId, 1, shares);
     }
     
-    int complexExpenseTest(String[] names, Double[] amounts, String purpose, Double... portions) {
+    int complexExpenseTest(String[] names, Double[] amounts, String purpose, String policy) {
 		ShareMap deals = new ShareMap(names, amounts);
-		ShareMap shares = new ShareMap(participants, deals.sum(), portions);
+		ShareMap shares = new ShareMap(participants, deals.sum(), policy);
     	int entry = transactor.performComplexExpense(deals, purpose, shares);
-    	return entryTest(entry, deals.rawMap.size() + (deals.rawMap.containsKey(Util.kitty) ? 1 : 0), shares);
+    	return entryTest(entry, deals.rawMap.size() + (deals.rawMap.containsKey(kitty) ? 1 : 0), shares);
     }
     
     void sharingTest(double expectedExpenses, String policy) {
     	double costs = transactor.expenses();
-		assertEquals("costs are wrong.", expectedExpenses, costs, Util.minAmount);
+		assertEquals("costs are wrong.", expectedExpenses, costs, minAmount);
 		ShareMap shares = new ShareMap(participants, costs, policy);
 		assertAmountEquals("Sharing sucks.", costs, shares.negated().sum());
     }
@@ -356,25 +359,29 @@ public class BackendTest extends ActivityTest
     void totalTest(double... expected) {
     	double total = transactor.total();
     	if (expected.length > 0)
-    		assertEquals("unexpected total : " + Helper.formatAmount(total), expected[0], total, Util.minAmount);
+    		assertEquals("unexpected total : " + Helper.formatAmount(total), expected[0], total, minAmount);
     	else
     		assertAmountZero("Total is wrong.", total);
     }
     
-    public String[] entries = null;
-    
     void scenarioTest(String suffix, int count) {
-    	this.suffix = suffix;
-    	this.entries = transactor.getEntryStrings("", transactor.tableName(null));
-    	assertEquals(count, this.entries.length);
+    	String[] entries = transactor.getEntryStrings("", tableName());
+    	assertEquals(count, entries.length);
     	String[] comments = transactor.sortedComments();
     	assertEquals(count, comments.length);
+		if (entries.length > 0)
+			saveTest(suffix);
     }
     
     public void test_Scenario0() {
+    	transactor.clearAll();
+		Set<String> tables = transactor.savedTables();
+		assertEquals(0, tables.size());
+    	
     	int entryId = compensationTest(null);
     	assertTrue(entryId > 0);
-    	assertEquals("", transactor.getEntryString(entryId, transactor.tableName(null)));
+    	assertEquals("", transactor.getEntryString(entryId, tableName()));
+    	
     	scenarioTest("Scenario0", 0);
     }
     
@@ -402,7 +409,7 @@ public class BackendTest extends ActivityTest
     	//	cost sharing on a trip ... more complex
     	submissionTest("Tom", 60, "stake");
     	//	Bob pays 100 for gas and uses 50 from the kitty
-    	complexExpenseTest(new String[] {Util.kitty,"Bob"}, new Double[] {50.,50.}, "gas");
+    	complexExpenseTest(new String[] {kitty,"Bob"}, new Double[] {50.,50.}, "gas", "");
     	simpleExpenseTest("Sue", 70, "groceries");
     	
     	//	Kassensturz !
@@ -418,8 +425,8 @@ public class BackendTest extends ActivityTest
     public void test_Scenario3() {
     	//	non-uniform expenses
     	submissionTest(participants[2], 50, "stake");
-    	expenseTest(participants[0], 70, "groceries", "3:0:4");
-    	expenseTest(participants[0], 100, "gas", "3:7:0");
+    	expenseTest(new String[] {participants[0]}, new Double[] {70.}, "groceries", "3:0:4");
+    	expenseTest(new String[] {participants[0]}, new Double[] {100.}, "gas", "3:7:0");
     	
     	totalTest(50);
 		sharingTest(170, "");

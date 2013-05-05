@@ -35,20 +35,21 @@ public class AssertHelper
     	for (int i = 0; i < expected.length; i+=2) {
     		Map.Entry<String, Double> entry = it.next();
     		assertEquals(message, expected[i].toString(), entry.getKey());
-    		assertEquals(message, (Double) expected[i + 1], entry.getValue(), Util.minAmount);
+    		assertEquals(message, (Double) expected[i + 1], entry.getValue(), ShareUtil.minAmount);
     	}
     }
     
-    public static void assertAmountZero(String message, Double actual) {
-    	assertEquals(message, 0, actual, Util.delta);
+    public static void assertAmountZero(String message, Double amount) {
+    	assertNotNull("amount is null instead of zero", amount);
+    	assertEquals(message, 0., amount, ShareUtil.delta);
     }
     
     public static void assertAmountEquals(Double expected, Double actual) {
-    	assertEquals(expected, actual, Util.delta);
+    	assertEquals(expected, actual, ShareUtil.delta);
     }
     
     public static void assertAmountEquals(String message, Double expected, Double actual) {
-    	assertEquals(message, expected, actual, Util.delta);
+    	assertEquals(message, expected, actual, ShareUtil.delta);
 //    	String exp = Util.formatAmount(expected);
 //    	String act = Util.formatAmount(actual);
 //    	assertEquals(message, exp, act);
@@ -72,7 +73,7 @@ public class AssertHelper
     	if (mapEntry) 
     		assertMapEquals(message, map, expected);
     	else if (expected[0] instanceof Double) 
-    		assert_ArrayEquals(message, expected, map.values().toArray(), Util.minAmount);
+    		assert_ArrayEquals(message, expected, map.values().toArray(), ShareUtil.minAmount);
     	else if (expected[0] instanceof String) 
     		assert_ArrayEquals(message, expected, map.keySet().toArray());
     	else

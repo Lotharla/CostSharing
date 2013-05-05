@@ -1,45 +1,43 @@
 package com.applang.test;
 
-import java.io.File;
-
-import junit.framework.Test;
-
-import android.os.Environment;
+import android.app.Activity;
 import android.test.*;
-import android.test.suitebuilder.TestSuiteBuilder;
 
-import com.applang.*;
-import com.applang.db.*;
+import com.jayway.android.robotium.solo.Solo;
 
-public class ActivityTest extends ActivityInstrumentationTestCase2<CostSharingActivity> 
+public class ActivityTest<T extends Activity> extends ActivityInstrumentationTestCase2<T> 
 {
-	public static void main(String[] args) {
-//		TestSuite suite = new TestSuite(CashPointTest.class);
-//		InstrumentationTestRunner.run(suite);
+/*	public static void main(String[] args) {
+		TestSuite suite = new TestSuite(CashPointTest.class);
+		InstrumentationTestRunner.run(suite);
 	}
 	
 	public static Test suite() {
-	    return new TestSuiteBuilder(BackendTest.class).
+	    return new android.test.suitebuilder.TestSuiteBuilder(BackendTest.class).
 	    		includePackages("com.applang.test.BackendTest").build();
 	}
+*/
+	protected Solo solo;
 
-	public ActivityTest() {
-		super("com.applang", CostSharingActivity.class);
+	public ActivityTest(String pkg, Class<T> activityClass) {
+		super(pkg, activityClass);
 	}
 	
-	public ActivityTest(String method) {
+/*	public ActivityTest(String method) {
 		this();
 	}
-
+*/
     @Override
     protected void setUp() throws Exception {
         super.setUp();
-    	
-//    	assertTrue(Helper.databaseFile().exists());
+        
+		solo = new Solo(getInstrumentation(), getActivity());
     }
 
     @Override
     protected void tearDown() throws Exception {
+		solo.finishOpenedActivities();
+		
         super.tearDown();
 	}
 }

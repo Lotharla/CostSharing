@@ -2,18 +2,19 @@ package com.applang.share;
 
 import java.util.*;
 
-public class Util 
+public class ShareUtil 
 {
 	/**
+	 * @param <P>	type of the values in the parameter array
 	 * @param <T>	genericized return type
-	 * @param defaultParam	the value returned if the indexed value doesn't exist in the <code>Object</code> array
-	 * @param index	the <code>int</code> indicating the value in the <code>Object</code> array
-	 * @param params	the optional array of <code>Object</code> values
-	 * @return	if the value is not existing <code>null</code> is returned
+	 * @param defaultParam	the value returned if the indexed value doesn't exist in the array
+	 * @param index	indicating the value in the parameter array that is returned
+	 * @param params	the parameter array
+	 * @return	if the indicated value does not exist the value of defaultParam is returned
 	 * @throws ClassCastException
 	 */
 	@SuppressWarnings("unchecked")
-	public static <T extends Object> T param(T defaultParam, int index, Object... params) throws ClassCastException {
+	public static <P extends Object, T extends P> T param(T defaultParam, int index, P... params) {
 		if (params != null && index > -1 && params.length > index)
 			try {
 				T returnValue = (T)params[index];
@@ -58,15 +59,39 @@ public class Util
 	}
 	
 	public static Boolean namedBoolean(Boolean defaultValue, String name, Map<String, Object> map) {
-		return parseBoolean(defaultValue, namedValue((String)null, name, map));
+		if (map.containsKey(name)) {
+			Object value = map.get(name);
+			if (value instanceof Boolean)
+				return (Boolean) value;
+			else
+				return parseBoolean(defaultValue, "" + value);
+		}
+		else
+			return defaultValue;
 	}
 	
 	public static Integer namedInteger(Integer defaultValue, String name, Map<String, Object> map) {
-		return parseInteger(defaultValue, namedValue((String)null, name, map));
+		if (map.containsKey(name)) {
+			Object value = map.get(name);
+			if (value instanceof Integer)
+				return (Integer) value;
+			else
+				return parseInteger(defaultValue, "" + value);
+		}
+		else
+			return defaultValue;
 	}
 	
 	public static Double namedDouble(Double defaultValue, String name, Map<String, Object> map) {
-		return parseDouble(defaultValue, namedValue((String)null, name, map));
+		if (map.containsKey(name)) {
+			Object value = map.get(name);
+			if (value instanceof Double)
+				return (Double) value;
+			else
+				return parseDouble(defaultValue, "" + value);
+		}
+		else
+			return defaultValue;
 	}
 	/**
 	 * @param <T>	type of the given array
@@ -79,11 +104,33 @@ public class Util
 		return Arrays.asList(array).toArray(a);
 	}
 
-	public static Object[] chain(Object head, Object... tail) {
-		Object[] array = new Object[1 + tail.length];
-		array[0] = head;
-		System.arraycopy(tail, 0, array, 1, tail.length);
+	public static Object[] chain(Object[] head, Object... tail) {
+		Object[] array = new Object[head.length + tail.length];
+		System.arraycopy(head, 0, array, 0, head.length);
+		System.arraycopy(tail, 0, array, head.length, tail.length);
 		return array;
+	}
+
+	public static Object[] reduce(int index, Object... array) {
+		if (index < 0) 
+			return array;
+		else if (index >= array.length)
+			return new Object[0];
+		else {
+			int len = array.length - index;
+			Object[] reduced = new Object[len];
+			System.arraycopy(array, index, reduced, 0, len);
+			return reduced;
+		}
+	}
+
+	public static List<String> makeList(String head, String... tail) {
+		ArrayList<String> list = new ArrayList<String>();
+		list.add(head);
+		for (String element : tail) 
+			if (!head.equals(element))
+				list.add(element);
+		return list;
 	}
 
 	@SuppressWarnings("unchecked")
@@ -94,6 +141,54 @@ public class Util
 			} catch (Exception e) {}
 
 		return elseValue;
+	}
+
+	public static Object parseStringArray(String s) {
+		if (s.startsWith("[") && s.endsWith("]")) {
+			s = strip(true, strip(false, s, "]"), "[");
+			return split(s, ",\\s*");
+		}
+		else
+			return s;
+	}
+
+	public static Object parseIntegerArray(String s) {
+		Object o = parseStringArray(s);
+		if (o instanceof String)
+			return parseInteger(null, s);
+		else {
+			String[] a = (String[]) o;
+			Integer[] ia = new Integer[a.length];
+			for (int i = 0; i < a.length; i++) 
+				ia[i] = parseInteger(null, a[i]);
+			return ia;
+		}
+	}
+
+	public static Object parseDoubleArray(String s) {
+		Object o = parseStringArray(s);
+		if (o instanceof String)
+			return parseDouble(null, s);
+		else {
+			String[] a = (String[]) o;
+			Double[] da = new Double[a.length];
+			for (int i = 0; i < a.length; i++) 
+				da[i] = parseDouble(null, a[i]);
+			return da;
+		}
+	}
+
+	public static Object parseBooleanArray(String s) {
+		Object o = parseStringArray(s);
+		if (o instanceof String)
+			return parseBoolean(null, s);
+		else {
+			String[] a = (String[]) o;
+			Boolean[] ba = new Boolean[a.length];
+			for (int i = 0; i < a.length; i++) 
+				ba[i] = parseBoolean(null, a[i]);
+			return ba;
+		}
 	}
 
 	public static Integer parseInteger(Integer defaultValue, String string) {
@@ -142,7 +237,6 @@ public class Util
 		return value != null && value.trim().length() > 0;
 	}
 
-	@SuppressWarnings("unchecked")
 	public static <T> String join(String delimiter, T... params) {
 	    StringBuilder sb = new StringBuilder();
 	    Iterator<T> iter = new ArrayList<T>(Arrays.asList(params)).iterator();
@@ -235,6 +329,23 @@ public class Util
 	
 	public static String kitty = "KITTY";
 
+    public static String tableName(Object... parts) {
+    	if (isNullOrEmpty(parts))
+    		return kitty;
+    	else if (parts.length < 2)
+    		return kitty + "_" + parts[0];
+    	else
+    		return parts[0] + "_" + parts[1];
+    }
+
+    public static String specificName(String tableName) {
+    	String[] parts = split(tableName, "_");
+    	if (parts.length > 0)
+    		return parts[parts.length - 1];
+    	else
+    		return "";
+    }
+
 	/**
 	 * no discussion about that amount of currency
 	 */
@@ -264,13 +375,8 @@ public class Util
 			return false;
 	}
 
-	public static List<String> makeList(String head, String... tail) {
-		ArrayList<String> list = new ArrayList<String>();
-		list.add(head);
-		for (String element : tail) 
-			if (!head.equals(element))
-				list.add(element);
-		return list;
-	}
-	
+	public static String[] transactions = new String[] {"", 
+		"Submission", "Transfer", "Expense", "Compensation", "Discard", 
+		"clear", "save", "load", "clear all"};
+
 }

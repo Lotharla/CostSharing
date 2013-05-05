@@ -2,13 +2,16 @@ package com.applang.test;
 
 import java.util.*;
 
+import junit.framework.TestCase;
+
 import com.applang.share.*;
 import com.applang.share.ShareMap.PolicyEvaluator;
 import com.applang.share.ShareMap.PolicyException;
 
 import static com.applang.test.AssertHelper.*;
+import static com.applang.share.ShareUtil.*;
 
-public class ShareMapTest extends ActivityTest
+public class ShareMapTest extends TestCase
 {
     public ShareMapTest() {
 		super();
@@ -19,15 +22,33 @@ public class ShareMapTest extends ActivityTest
 	}
     
     public void testBasics() {
-    	assertEquals("{param0==}", Util.namedParams("=").toString());
-    	assertEquals("{Bob=}", Util.namedParams("Bob=").toString());
-    	assertEquals("{Sue=100.}", Util.namedParams("Sue=100.").toString());
-    	Map<String, Object> map = Util.namedParams("Sue=true", "Tom=false", "Bob", -100.);
-		assertEquals("{param2=Bob, param3=-100.0, Tom=false, Sue=true}", map.toString());
-		assertTrue(Boolean.parseBoolean(Util.namedValue("false", "Sue", map)));
-		assertFalse(Boolean.parseBoolean(Util.namedValue("true", "Tom", map)));
-		assertEquals("Bob", Util.namedValue("", "param2", map));
-		assertEquals(-100.0, Util.namedValue(0., "param3", map), Util.delta);
+		assertEquals("xxx", param("", 1, new String[] {"x", "xxx", "zzz"}));
+		assertEquals(new Integer(42), param(0, 2, new Integer[] {-24, 5, 42}));
+		assertEquals(new Integer(-24), param("", 0, new Object[] {-24, 5, 42}));
+		assertEquals("x", param("x", 4, new Object[] {-24, 5, 42}));
+		
+    	assertEquals("{param0==}", namedParams("=").toString());
+    	assertEquals("{Bob=}", namedParams("Bob=").toString());
+    	assertEquals("{Sue=100.}", namedParams("Sue=100.").toString());
+    	Map<String, Object> map = namedParams("Sue=true", "Tom=false", "Bob", -100.);
+		assertTrue(map.toString().contains("Sue=true"));
+		assertTrue(map.toString().contains("Tom=false"));
+		assertTrue(map.toString().contains("param2=Bob"));
+		assertTrue(map.toString().contains("param3=-100.0"));
+		assertTrue(Boolean.parseBoolean(namedValue("false", "Sue", map)));
+		assertFalse(Boolean.parseBoolean(namedValue("true", "Tom", map)));
+		assertEquals("Bob", namedValue("", "param2", map));
+		assertEquals(-100.0, namedValue(0., "param3", map), delta);
+		
+    	map = namedParams(42, new ShareMap(), "xxx", false, "type=333");
+    	assertEquals(new Integer(42), namedInteger(-1, "param0", map));
+    	assertEquals("xxx", namedValue(null, "param2", map));
+    	assertEquals(new Boolean(false), namedBoolean(null, "param3", map));
+    	assertEquals(new Integer(333), namedInteger(null, "type", map));
+    	assertEquals(new ShareMap().toString(), namedValue(null, "param1", map).toString());
+    	
+    	assert_ArrayEquals(new String[] {"xxx", "yy", "z"}, (String[]) parseStringArray("[xxx,yy, z]"));
+    	assert_ArrayEquals(new Double[] {42.34, -3.1415, null}, (Double[]) parseDoubleArray("[42.34,-3.1415, z]"));
 	}
  
 	String[] participants = new String[] {"Sue", "Bob", "Tom"};
@@ -51,13 +72,13 @@ public class ShareMapTest extends ActivityTest
     	assertAmountEquals(-600., sm.sum());
     	assertAmountEquals(sm.sum(), -sm.negated().sum());
     	
-    	assertEquals(789, Util.parseInteger(null, "\t789 ").intValue());
-    	assertNull(Util.parseInteger(null, "\t789. "));
-    	assertNull(Util.parseInteger(null, "\t7 89 "));
+    	assertEquals(789, parseInteger(null, "\t789 ").intValue());
+    	assertNull(parseInteger(null, "\t789. "));
+    	assertNull(parseInteger(null, "\t7 89 "));
     	
-    	assertEquals(789., Util.parseDouble(null, "\t789 ").doubleValue(), Util.delta);
-    	assertNotNull(Util.parseDouble(null, "\t789. "));
-    	assertNull(Util.parseDouble(null, "\t7 89 "));
+    	assertEquals(789., parseDouble(null, "\t789 ").doubleValue(), delta);
+    	assertNotNull(parseDouble(null, "\t789. "));
+    	assertNull(parseDouble(null, "\t7 89 "));
     }	
    
     public void testPolicies() throws ShareMap.PolicyException {
@@ -78,17 +99,17 @@ public class ShareMapTest extends ActivityTest
     	
     	sm = new ShareMap();
     	sm.updateWith(120., "");
-    	assertShareMap(sm, Util.placeholder(), -120.);
+    	assertShareMap(sm, placeholder(), -120.);
     	sm.updateWith(120., "3:1:2");
-    	assertShareMap(sm, Util.placeholder(1), -60., Util.placeholder(2), -20., Util.placeholder(3), -40.);
+    	assertShareMap(sm, placeholder(1), -60., placeholder(2), -20., placeholder(3), -40.);
     	sm.updateWith(120., "1*3");
-    	assertShareMap(sm, Util.placeholder(1, 1), -40., Util.placeholder(1, 2), -40., Util.placeholder(1, 3), -40.);
+    	assertShareMap(sm, placeholder(1, 1), -40., placeholder(1, 2), -40., placeholder(1, 3), -40.);
     	sm.updateWith(120., "1*1");
-    	assertShareMap(sm, Util.placeholder(1, 1), -120.);
+    	assertShareMap(sm, placeholder(1, 1), -120.);
     	sm.updateWith(120., "0:1*2:4");
-    	assertShareMap(sm, Util.placeholder(1), 0., Util.placeholder(2, 1), -20., Util.placeholder(2, 2), -20., Util.placeholder(3), -80.);
+    	assertShareMap(sm, placeholder(1), 0., placeholder(2, 1), -20., placeholder(2, 2), -20., placeholder(3), -80.);
     	sm.renameWith(participants);
-    	assertShareMap(sm, "Bob", -20., "Sue", 0., "Tom", -20., Util.placeholder(3), -80.);
+    	assertShareMap(sm, "Bob", -20., "Sue", 0., "Tom", -20., placeholder(3), -80.);
     	sm.updateWith(120., "Tom=2\nSue=3\nBob=1");
     	assertShareMap(sm, "Bob", -20., "Sue", -60., "Tom", -40.);
     	sm.updateWith(0., "Tom=20.\nSue=-60.\nBob=40.");
@@ -150,18 +171,18 @@ public class ShareMapTest extends ActivityTest
 			assertEquals(4, e.loc);
 		}
     	try {
-    		ShareMap.checkNames(true, new String[] {Util.kitty});
+    		ShareMap.checkNames(true, new String[] {kitty});
 			fail("checkNames should have failed");
 		} catch (ShareMap.PolicyException e) {
 			assertEquals(6, e.loc);
 		}
     	try {
-    		ShareMap.checkNames(true, new String[] {Util.placeholder()});
+    		ShareMap.checkNames(true, new String[] {placeholder()});
 			fail("checkNames should have failed");
 		} catch (ShareMap.PolicyException e) {
 			assertEquals(5, e.loc);
     		try {
-				ShareMap.checkNames(false, new String[] {Util.placeholder()});
+				ShareMap.checkNames(false, new String[] {placeholder()});
 			} catch (ShareMap.PolicyException e1) {
 				fail("checkNames failed");;
 			}
@@ -202,7 +223,7 @@ public class ShareMapTest extends ActivityTest
 		    	names.clear();
 				assertEquals(3, ShareMap.parsePolicy(policy2, "", names));
 				for (int i = 0; i < 3; i++)
-					assertEquals(Util.placeholder(1 + i), names.get(i));
+					assertEquals(placeholder(1 + i), names.get(i));
 				policy2 = ShareMap.translatePolicy(true, policy1, participants);
 		    	assertEquals(policy0, policy2);
 				
@@ -229,14 +250,14 @@ public class ShareMapTest extends ActivityTest
     
     public void testFilter() {
 		ShareMap sm = new ShareMap();
-		sm.rawMap.put(Util.kitty, 60.);
+		sm.rawMap.put(kitty, 60.);
 		sm.rawMap.put("Bob", 20.);
 		sm.rawMap.put("Tom", 40.);
-		assert_ArrayEquals(Util.filter(sm.rawMap.keySet(), false, Util.isKitty).toArray(), new Object[] {Util.kitty});
-		assert_ArrayEquals(Util.filter(sm.rawMap.keySet(), true, Util.isKitty).toArray(), new Object[] {"Bob", "Tom"});
+		assert_ArrayEquals(filter(sm.rawMap.keySet(), false, isKitty).toArray(), new Object[] {kitty});
+		assert_ArrayEquals(filter(sm.rawMap.keySet(), true, isKitty).toArray(), new Object[] {"Bob", "Tom"});
 		sm.setNames(sm.rawMap.keySet().toArray(new String[0]));
 		sm.setSpender("Tom");
-		assert_ArrayEquals(Util.filter(Arrays.asList(sm.getNames()), true, Util.isKitty).toArray(), new Object[] {"Tom", "Bob"});
+		assert_ArrayEquals(filter(Arrays.asList(sm.getNames()), true, isKitty).toArray(), new Object[] {"Tom", "Bob"});
     }	
 
 }
